@@ -34,7 +34,7 @@
             uniform float u_time;
             uniform vec2  u_mouse;
 
-            #define NUM_OCTAVES 10
+            #define NUM_OCTAVES 5
 
             float mod289(float x){return x - floor(x * (1.0 / 289.0)) * 289.0;}
             vec4 mod289(vec4 x){return x - floor(x * (1.0 / 289.0)) * 289.0;}
@@ -139,20 +139,33 @@
 
             void main() {
                 vec2 st = gl_FragCoord.xy/u_resolution.xy;
+
                 vec2 ms = vec2(u_mouse.x,-u_mouse.y)/u_resolution;
                 ms.y = ((ms.y+.5)*2.);
                 ms.x *= 2.;
 
-                float scaled_time = u_time/500.;
+                // scale time
+                float timeScale = 100.;
+                float scaled_time = u_time/timeScale;
 
-                float curNoise = fbm(vec3(st*2.,scaled_time));
+                ms.x = clamp(noise(vec3(sin(scaled_time),cos(scaled_time),cos(scaled_time))),0.,1.);
+                ms.y = clamp(noise(vec3(cos(scaled_time),sin(scaled_time),cos(scaled_time))),0.,1.);
+
+                // scale coords
+                float scale = 5.;
+                st = st * scale;
+                ms = ms * scale;
+
+
+                float curNoise = sin(abs(fbm(vec3(st*2.,scaled_time)))*10.);
                 float stepNoise = step(0.1,curNoise);
 
-                gl_FragColor = vec4(stepNoise) * (distance(ms,st) / fbm(vec3(st*2.,scaled_time)));
+                vec4 color = vec4(stepNoise);
+                color *= sin(((distance(ms,st)/10.) / fbm(vec3(st,ms.x/10.)))*5.);
+
+                gl_FragColor = color;
             }
         </script>
-
-
     </head>
     <body>
         <div id="container"></div>
