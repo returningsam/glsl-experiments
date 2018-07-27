@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+    <head>
+        <meta charset="utf-8">
+        <title>glsl_template</title>
+        <style media="screen">
+            html, body, canvas {
+                overflow: hidden;
+                margin: 0;
+                padding: 0;
+                height: 100%;
+                width: 100%;
+            }
+        </style>
+        <script src="main.js" charset="utf-8"></script>
+        <script src="three.min.js"></script>
+
+
+        <script id="vertexShader" type="x-shader/x-vertex">
+            precision highp float;
+            precision highp int;
+
+            void main() {
+                gl_Position = vec4( position, 1.0 );
+            }
+        </script>
+
+
+        <script id="fragmentShader" type="x-shader/x-fragment">
+            precision highp float;
+            precision highp int;
+
+            uniform vec2  u_resolution;
+            uniform float u_time;
+            uniform vec2  u_mouse;
+
+            #define OCTAVES   		1		// 7
+            #define SWITCH_TIME 	5.0		// seconds
+
+            float scaled_time = u_time/2.;
+
+            float t = 10.;//u_time/SWITCH_TIME;
+
+            float function 			= mod(t,4.0);
+            bool  multiply_by_F1	= mod(t,8.0)  >= 4.0;
+            bool  inverse				= mod(t,16.0) >= 8.0;
+            float distance_type	= mod(t/16.0,4.0);
+
+            vec2 hash( vec2 p ){
+                p = vec2( dot(p,vec2(127.1,311.7)),dot(p,vec2(269.5,183.3)));
+                return fract(sin(p)*43758.5453);
+            }
+
+            float voronoi( in vec2 x ){
+                vec2 n = floor( x );
+                vec2 f = fract( x );
+
+                float F1 = 8.0;
+                float F2 = 8.0;
+
+                for( int j=-1; j<=1; j++ )
+                    for( int i=-1; i<=1; i++ ){
+                        vec2 g = vec2(i,j);
+                        vec2 o = hash( n + g );
+
+                        o = 0.5 + 0.41*sin( scaled_time + 6.2831*o );
+                        vec2 r = g - f + o;
+
+                    float d = 	distance_type < 1.0 ? dot(r,r)  :				// euclidean^2
+                                  distance_type < 2.0 ? sqrt(dot(r,r)) :			// euclidean
+                                distance_type < 3.0 ? abs(r.x) + abs(r.y) :		// manhattan
+                                distance_type < 4.0 ? max(abs(r.x), abs(r.y)) :	// chebyshev
+                                0.0;
+
+                    if( d<F1 ) {
+                        F2 = F1;
+                        F1 = d;
+                    } else if( d<F2 ) {
+                        F2 = d;
+                    }
+                }
+
+                float c = function < 1.0 ? F1 :
+                          function < 2.0 ? F2 :
+                          function < 3.0 ? F2-F1 :
+                          function < 4.0 ? (F1+F2)/2.0 :
+                          0.0;
+
+                if( multiply_by_F1 )	c *= F1;
+                if( inverse )			c = 1.0 - c;
+
+                return c;
+            }
+
+            float fbm( in vec2 p ){
+                float s = 0.0;
+                float m = 0.0;
+                float a = 0.5;
+
+                for( int i=0; i<OCTAVES; i++ ){
+                    s += a * voronoi(p);
+                    m += a;
+                    a *= 0.5;
+                    p *= 2.0;
+                }
+                return s/m;
+            }
+
+            void main() {
+                vec2 st = gl_FragCoord.xy/u_resolution.xy;
+                vec2 ms = vec2(u_mouse.x,-u_mouse.x)/u_resolution;
+
+                st *= 5.;
+
+                float curNoise = fbm(st);
+
+                float stepNosie = step(0.1,sin(curNoise*200.));
+
+                vec3 color = vec3(0.,0.,0.);
+
+                vec3 yellow = vec3(0.86,0.73,0.31);
+                vec3 red    = vec3(0.62,0.21,0.21);
+                vec3 black  = vec3(0.16,0.17,0.19);
+
+
+                if (curNoise > 0.8) {
+                    color = stepNosie * yellow;
+                }
+                else if (curNoise > 0.4) {
+                    color = stepNosie * red;
+                }
+                else {
+                    color = stepNosie * black;
+                }
+
+                gl_FragColor = vec4(color,1.);
+            }
+        </script>
+
+
+    </head>
+    <body>
+        <div id="container"></div>
+    </body>
+</html>
