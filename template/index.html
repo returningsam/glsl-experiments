@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+    <head>
+        <meta charset="utf-8">
+        <title>glsl_template</title>
+        <style media="screen">
+            html, body, canvas {
+                overflow: hidden;
+                margin: 0;
+                padding: 0;
+                height: 100%;
+                width: 100%;
+            }
+        </style>
+        <script src="main.js" charset="utf-8"></script>
+        <script src="three.min.js"></script>
+
+
+        <script id="vertexShader" type="x-shader/x-vertex">
+            precision highp float;
+            precision highp int;
+
+            void main() {
+                gl_Position = vec4( position, 1.0 );
+            }
+        </script>
+
+
+        <script id="fragmentShader" type="x-shader/x-fragment">
+            precision highp float;
+            precision highp int;
+
+            uniform vec2  u_resolution;
+            uniform float u_time;
+            uniform vec2  u_mouse;
+
+            void main() {
+                vec2 st = gl_FragCoord.xy/u_resolution.xy;
+                vec2 ms = vec2(u_mouse.x,-u_mouse.x)/u_resolution;
+
+                gl_FragColor = vec4(1.);
+            }
+        </script>
+
+
+    </head>
+    <body>
+        <div id="container"></div>
+    </body>
+</html>
