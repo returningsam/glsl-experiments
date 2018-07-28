@@ -21,7 +21,7 @@
             precision highp int;
 
             void main() {
-                gl_Position = vec4( position, 1.0 );
+                gl_Position = vec4( position , 1.0 );
             }
         </script>
 
@@ -155,6 +155,8 @@
                 float scale = 5.;
                 st = st * scale;
                 ms = ms * scale;
+
+                st += noise(vec3(st,u_time/10.))/10.;
 
 
                 float curNoise = sin(abs(fbm(vec3(st*2.,scaled_time)))*10.);
