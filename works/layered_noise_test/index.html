@@ -15,7 +15,6 @@
         <script src="main.js" charset="utf-8"></script>
         <script src="three.min.js"></script>
 
-
         <script id="vertexShader" type="x-shader/x-vertex">
             precision highp float;
             precision highp int;
@@ -25,12 +24,11 @@
             }
         </script>
 
-
         <script id="fragmentShader" type="x-shader/x-fragment">
-            #define M_PI 3.1415926535897932384626433832795
-
             precision highp float;
             precision highp int;
+
+            #define NUM_LAYERS 35.
 
             uniform vec2  u_resolution;
             uniform float u_time;
@@ -108,45 +106,60 @@
                                         dot(p2,x2), dot(p3,x3) ) );
             }
 
+            float mod289(float x){return x - floor(x * (1.0 / 289.0)) * 289.0;}
+            vec4 mod289(vec4 x){return x - floor(x * (1.0 / 289.0)) * 289.0;}
+            vec4 perm(vec4 x){return mod289(((x * 34.0) + 1.0) * x);}
 
-            float getAngle(vec2 p1,vec2 p2) {
-                return atan((p2.y-p1.y)/(p2.x-p1.x)) + M_PI/2.;
-            }
+            float noise(vec3 p){
+                vec3 a = floor(p);
+                vec3 d = p - a;
+                d = d * d * (3.0 - 2.0 * d);
 
-            vec2 rotateAround(vec2 p, vec2 c, float a) {
-                vec2 newP = vec2(1.);
-                newP.x = c.x + (p.x-c.x)*cos(a) - (p.y-c.y)*sin(a);
-                newP.y = c.y + (p.x-c.x)*sin(a) + (p.y-c.y)*cos(a);
-                return newP;
+                vec4 b = a.xxyy + vec4(0.0, 1.0, 0.0, 1.0);
+                vec4 k1 = perm(b.xyxy);
+                vec4 k2 = perm(k1.xyxy + b.zzww);
+
+                vec4 c = k2 + a.zzzz;
+                vec4 k3 = perm(c);
+                vec4 k4 = perm(c + 1.0);
+
+                vec4 o1 = fract(k3 * (1.0 / 41.0));
+                vec4 o2 = fract(k4 * (1.0 / 41.0));
+
+                vec4 o3 = o2 * d.z + o1 * (1.0 - d.z);
+                vec2 o4 = o3.yw * d.x + o3.xz * (1.0 - d.x);
+
+                return o4.y * d.y + o4.x * (1.0 - d.y);
             }
 
             void main() {
                 vec2 st = gl_FragCoord.xy/u_resolution.xy;
-                st.x *= u_resolution.x/u_resolution.y;
                 vec2 ms = vec2(u_mouse.x,-u_mouse.x)/u_resolution;
 
-                float s_time = u_time/10.;
+                float pScale = 2.;
+                st *= pScale;
+                ms *= pScale;
 
-                // set middle coordinate
-                vec2 startCoord = vec2(0.5);
-                startCoord.x *= u_resolution.x/u_resolution.y;
-
-                // scale position
-                float scale = 10.;
-                st *= scale;
-                startCoord *= scale;
+                float tScale = 0.05;
+                float s_time = u_time * tScale;
 
                 vec3 color = vec3(0.);
 
-                float rot = snoise(vec3(st,s_time/10.));
+                float additiveColor = 1./NUM_LAYERS;
 
-                st = rotateAround(st,startCoord,rot);
+                float spread = 80.;
 
-                if (getAngle(st,startCoord) < (sin(s_time)+1.05)*1.5) {
-                    color += 1.;
+
+                // I am pretty sure I can do this without a for loop and some good ol' math.
+                for (int i = 0; i < int(NUM_LAYERS); i++) {
+                    float curNoise = snoise(vec3(st,float(i)/spread + s_time));
+                    if (step(0.5,curNoise) > 0.5) {
+                        float curAdd = curNoise/200.;
+                        color = min(color + curAdd + vec3(noise(vec3(st,s_time*10. + 10.))/30.,curAdd + noise(vec3(st,s_time*10. + 11.))/30.,curAdd + noise(vec3(st,s_time*12. + 10.))/30.),1.);
+                    }
                 }
 
-                gl_FragColor = vec4(color,1.);
+                gl_FragColor = vec4(color, 1.);
             }
         </script>
 
