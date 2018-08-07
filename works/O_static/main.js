@@ -28,7 +28,7 @@ function init() {
     scene.add( mesh );
 
     renderer = new THREE.WebGLRenderer();
-    renderer.setPixelRatio( window.devicePixelRatio * 0.8 );
+    renderer.setPixelRatio( window.devicePixelRatio );
 
     container.appendChild( renderer.domElement );
 
@@ -36,8 +36,8 @@ function init() {
     window.addEventListener( 'resize', onWindowResize, false );
 
     document.onmousemove = function(e){
-        uniforms.u_mouse.value.x = e.pageX;
-        uniforms.u_mouse.value.y = e.pageY;
+      uniforms.u_mouse.value.x = e.pageX
+      uniforms.u_mouse.value.y = e.pageY
     }
 }
 

@@ -27,6 +27,7 @@
 
 
         <script id="fragmentShader" type="x-shader/x-fragment">
+            #define M_PI 3.1415926535897932384626433832795
             precision highp float;
             precision highp int;
 
@@ -35,8 +36,19 @@
             uniform vec2  u_mouse;
 
             void main() {
-                vec2 st = gl_FragCoord.xy/u_resolution.xy;
-                vec2 ms = vec2(u_mouse.x,-u_mouse.x)/u_resolution;
+                vec2 st     = gl_FragCoord.xy/u_resolution.xy;
+                vec2 ms     = 2. * vec2(u_mouse.x,u_mouse.y)/u_resolution.xy;
+                ms.y        = (-ms.y) + 1.;
+                vec2 center = vec2(0.5,0.5);
+
+                // now we scale the x coordinate to make the x values to
+                // represent the same number of pixels as the y values.
+                // if the new x value is x1, and old x value is x0,
+                // the following is now true: 0. <= x1 <= x0 * (width/height).
+
+                st.x     *= u_resolution.x/u_resolution.y;
+                ms.x     *= u_resolution.x/u_resolution.y;
+                center.x *= u_resolution.x/u_resolution.y;
 
                 gl_FragColor = vec4(1.);
             }

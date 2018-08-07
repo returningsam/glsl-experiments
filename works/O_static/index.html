@@ -15,6 +15,7 @@
         <script src="main.js" charset="utf-8"></script>
         <script src="three.min.js"></script>
 
+
         <script id="vertexShader" type="x-shader/x-vertex">
             precision highp float;
             precision highp int;
@@ -25,11 +26,10 @@
         </script>
 
         <script id="fragmentShader" type="x-shader/x-fragment">
+            #define M_PI 3.1415926535897932384626433832795
+            #define NUM_OCTAVES 5
             precision highp float;
             precision highp int;
-
-            #define NUM_LAYERS 40.
-            #define M_PI 3.1415926535897932384626433832795
 
             uniform vec2  u_resolution;
             uniform float u_time;
@@ -107,100 +107,47 @@
                                         dot(p2,x2), dot(p3,x3) ) );
             }
 
-            float mod289(float x){return x - floor(x * (1.0 / 289.0)) * 289.0;}
-            vec4 mod289(vec4 x){return x - floor(x * (1.0 / 289.0)) * 289.0;}
-            vec4 perm(vec4 x){return mod289(((x * 34.0) + 1.0) * x);}
-
-            float noise3(vec3 p){
-                vec3 a = floor(p);
-                vec3 d = p - a;
-                d = d * d * (3.0 - 2.0 * d);
-
-                vec4 b = a.xxyy + vec4(0.0, 1.0, 0.0, 1.0);
-                vec4 k1 = perm(b.xyxy);
-                vec4 k2 = perm(k1.xyxy + b.zzww);
-
-                vec4 c = k2 + a.zzzz;
-                vec4 k3 = perm(c);
-                vec4 k4 = perm(c + 1.0);
-
-                vec4 o1 = fract(k3 * (1.0 / 41.0));
-                vec4 o2 = fract(k4 * (1.0 / 41.0));
-
-                vec4 o3 = o2 * d.z + o1 * (1.0 - d.z);
-                vec2 o4 = o3.yw * d.x + o3.xz * (1.0 - d.x);
-
-                return o4.y * d.y + o4.x * (1.0 - d.y);
-            }
-
-            float rand(float n){return fract(sin(n) * 43758.5453123);}
-
-            float noise1(float p){
-                float fl = floor(p);
-                float fc = fract(p);
-                return mix(rand(fl), rand(fl + 1.0), fc);
+            float fbm(vec3 x) {
+                float v = 0.0;
+                float a = 0.5;
+                vec3 shift = vec3(100);
+                for (int i = 0; i < NUM_OCTAVES; ++i) {
+                    v += a * snoise(x);
+                    x = x * 2.0 + shift;
+                    a *= 0.5;
+                }
+                return v;
             }
 
             void main() {
                 vec2 st     = gl_FragCoord.xy/u_resolution.xy;
                 vec2 ms     = 2. * vec2(u_mouse.x,u_mouse.y)/u_resolution.xy;
                 ms.y        = (-ms.y) + 1.;
-                vec2 center = vec2(noise1(u_time/10.),noise1(u_time/10. + 10000.))/1.;
+                vec2 center = vec2(0.5,0.5);
 
-                // coordinates are currently on a 1:1 scale.
-
-
-                // move to -0.5 -> 0.5 scale;
-
-                st     -= 0.5;
-                ms     -= 0.5;
-                center -= 0.5;
-
-                // now we scale the x coordinate to make the x values to
-                // represent the same number of pixels as the y values.
-                // if the new x value is x1, and old x value is x0,
-                // the following is now true: 0. <= x1 <= x0 * (width/height).
-
+                // scale the x coordinates to match y scale
                 st.x     *= u_resolution.x/u_resolution.y;
                 ms.x     *= u_resolution.x/u_resolution.y;
                 center.x *= u_resolution.x/u_resolution.y;
 
-                // st = (st + 1.)/2.;
-                // ms = (ms + 1.)/2.;
+                float cScale = 4.;
+                st     *= cScale;
+                ms     *= cScale;
+                center *= cScale;
 
-
-                float pScale = 50.;
-                st     *= pScale;
-                ms     *= pScale;
-                center *= pScale;
-
-
-                float tScale = .5;
-                float s_time = u_time * tScale;
-
-                vec3 color = vec3(0.);
-
-                float additiveColor = 1./NUM_LAYERS;
-
-                float spread = 10000.;
-
-                // I am pretty sure I can do this without a for loop and some good ol' math.
-                for (int i = 0; i < int(NUM_LAYERS); i++) {
-                    vec2 nst = vec2(st);
-                    nst = ((0.5 * (1.* - float(i)/NUM_LAYERS)) + 0.5)  * st;
-                    // nst.y = st.y * (st.y-ms.y);
-                    float curNoise = snoise(vec3(nst,((s_time/7.) - (float(i)/spread)))*10.);
-                    if (step(0.1,curNoise) > 0.5) {
-                        color = vec3(
-                            sin(noise1((abs(-s_time) + .5) * float(i)/NUM_LAYERS)),
-                            sin(noise1((abs(-s_time) + .0) * float(i)/NUM_LAYERS)),
-                            sin(noise1((abs(-s_time) - .5) *  0.5 * float(i)/NUM_LAYERS))
-                        );
+                float curNoise = fbm(vec3(st,u_time/10.));
+                curNoise += 0.2;
+                curNoise *= .005;
+                curNoise *= pow(((snoise(vec3(st,u_time/10.))/2.+0.5)/1.5)-(distance(center,st))*1.,13.);
+                vec3 color = vec3(1., 0.,0.);
+                if (curNoise > -0.01 && curNoise < 0.01) {
+                    curNoise *= 100.;
+                    if (curNoise > -0.01 && curNoise < 0.01) {
+                        color = vec3(1.);
                     }
-
                 }
 
-                gl_FragColor = vec4(color, 1.);
+                gl_FragColor = vec4(color,1.) ;
             }
         </script>
 
