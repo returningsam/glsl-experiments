@@ -1,22 +1,21 @@
 //	https://www.shadertoy.com/view/lsjGWD
 //	by Pietro De Nicola
 //
-#define OCTAVES   		1		// 7
+#define OCTAVES   		1	     	// 7
 #define SWITCH_TIME 	60.0		// seconds
+#define TYPE        	10.0
 
-float t = time/SWITCH_TIME;
-
-float function 			= mod(t,4.0);
-bool  multiply_by_F1	= mod(t,8.0)  >= 4.0;
-bool  inverse				= mod(t,16.0) >= 8.0;
-float distance_type	= mod(t/16.0,4.0);
+float function 		 = mod(TYPE,4.0);
+bool  multiply_by_F1 = mod(TYPE,8.0)  >= 4.0;
+bool  inverse		 = mod(TYPE,16.0) >= 8.0;
+float distance_type	 = mod(TYPE/16.0,4.0);
 
 vec2 hash( vec2 p ){
     p = vec2( dot(p,vec2(127.1,311.7)),dot(p,vec2(269.5,183.3)));
     return fract(sin(p)*43758.5453);
 }
 
-float voronoi( in vec2 x ){
+float voronoi( vec2 x, float time ){
     vec2 n = floor( x );
     vec2 f = fract( x );
 
@@ -56,21 +55,3 @@ float voronoi( in vec2 x ){
 
     return c;
 }
-
-float fbm( in vec2 p ){
-    float s = 0.0;
-    float m = 0.0;
-    float a = 0.5;
-
-    for( int i=0; i<OCTAVES; i++ ){
-        s += a * voronoi(p);
-        m += a;
-        a *= 0.5;
-        p *= 2.0;
-    }
-    return s/m;
-}
-
-// Use:
-//      vec2 p = gl_FragCoord.xy/iResolution.xx;
-//      float c = POWER*fbm( SCALE*p ) + BIAS;
