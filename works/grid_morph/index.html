@@ -133,24 +133,18 @@
 
                 vec3 color = vec3(1.);
 
-
-
                 st.x += fbm(vec3(st*5.,s_time))/30.;
 
-
-                if (cos(st.x*500.) > min(0.99,fbm(vec3(vec2(st.x*2.,st.y*10.)*2.,s_time))*7.)) {
+                if (cos(st.x*500.) > min(0.98,fbm(vec3(vec2(st.x*2.,st.y*10.)*2.,s_time))*7.)) {
                     color = vec3(0.);
                 }
-
-                if (cos(st.y*500.) > 0.99) {
+                else if (cos(st.y*500.) > 0.98) {
                     color = vec3(0.);
                 }
 
                 gl_FragColor = vec4(color,1.);
             }
         </script>
-
-
     </head>
     <body>
         <div id="container"></div>

@@ -1,8 +1,6 @@
 //	https://www.shadertoy.com/view/lsjGWD
 //	by Pietro De Nicola
 //
-#define OCTAVES   		1	     	// 7
-#define SWITCH_TIME 	60.0		// seconds
 #define TYPE        	10.0
 
 float function 		 = mod(TYPE,4.0);
