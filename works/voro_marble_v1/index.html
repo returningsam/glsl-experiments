@@ -28,66 +28,13 @@
 
         <script id="fragmentShader" type="x-shader/x-fragment">
             #define M_PI 3.1415926535897932384626433832795
-            #define TYPE 24.
+            #define TYPE        	3.0
             precision highp float;
             precision highp int;
-
 
             uniform vec2  u_resolution;
             uniform float u_time;
             uniform vec2  u_mouse;
-
-            float function 		 = mod(TYPE,4.0);
-            bool  multiply_by_F1 = mod(TYPE,8.0)  >= 4.0;
-            bool  inverse		 = mod(TYPE,16.0) >= 8.0;
-            float distance_type	 = mod(TYPE/16.0,4.0);
-
-            vec2 hash( vec2 p ){
-                p = vec2( dot(p,vec2(127.1,311.7)),dot(p,vec2(269.5,183.3)));
-                return fract(sin(p)*43758.5453);
-            }
-
-            float voronoi( vec2 x, float time ){
-                vec2 n = floor( x + 11. );
-                vec2 f = fract( x + 13. );
-
-                float F1 = 7.35201987263;
-                float F2 = 7.12317098373;
-
-                for( int j=-1; j<=1; j++ )
-                    for( int i=-1; i<=1; i++ ){
-                        vec2 g = vec2(i,j);
-                        vec2 o = hash( n + g );
-
-                        o = 0.5 + 0.41*sin( time + 13.2234234831*o );
-                        vec2 r = g - f + o;
-
-                    float d = 	distance_type < 1.0 ? dot(r,r)  :				// euclidean^2
-                                distance_type < 2.0 ? sqrt(dot(r,r)) :			// euclidean
-                                distance_type < 3.0 ? abs(r.x) + abs(r.y) :		// manhattan
-                                distance_type < 4.0 ? max(abs(r.x), abs(r.y)) :	// chebyshev
-                                0.0;
-
-                    if( d<F1 ) {
-                        F2 = F1;
-                        F1 = d;
-                    }
-                    else if( d<F2 ) {
-                        F2 = d;
-                    }
-                }
-
-                float c = function < 1.0 ? F1 :
-                          function < 2.0 ? F2 :
-                          function < 3.0 ? F2-F1 :
-                          function < 4.0 ? (F1+F2)/2.0 :
-                          0.0;
-
-                if( multiply_by_F1 )	c *= F1;
-                if( inverse )			c = 1.0 - c;
-
-                return c;
-            }
 
             vec4 permute(vec4 x){return mod(((x*34.0)+1.0)*x, 289.0);}
             vec4 taylorInvSqrt(vec4 r){return 1.79284291400159 - 0.85373472095314 * r;}
@@ -161,37 +108,84 @@
                                         dot(p2,x2), dot(p3,x3) ) );
             }
 
-            vec2 getSlope(vec2 p, float offset, float time) {
-                vec2 px0 = vec2(p.x - offset, p.y);
-                vec2 px1 = vec2(p.x + offset, p.y);
-                vec2 py0 = vec2(p.x, p.y - offset);
-                vec2 py1 = vec2(p.x, p.y + offset);
+            float function 		 = mod(TYPE,4.0);
+            bool  multiply_by_F1 = mod(TYPE,8.0)  >= 4.0;
+            bool  inverse		 = mod(TYPE,16.0) >= 8.0;
+            float distance_type	 = mod(TYPE/16.0,4.0);
 
-                return vec2(
-                    voronoi(px0,time) - voronoi(px1,time),
-                    voronoi(py0,time) - voronoi(py1,time)
-                );
+            vec2 hash( vec2 p ){
+                p = vec2( dot(p,vec2(127.1,311.7)),dot(p,vec2(269.5,183.3)));
+                return fract(sin(p)*43758.5453);
             }
 
-            vec2 slopeFromCenter(vec2 p, vec2 center, float offset, float time) {
-                vec2 px0 = vec2(p.x - offset, p.y);
-                vec2 px1 = vec2(p.x + offset, p.y);
-                vec2 py0 = vec2(p.x, p.y - offset);
-                vec2 py1 = vec2(p.x, p.y + offset);
+            float voronoi( vec3 point ){
+                vec2 x = point.xy;
+                float time = point.z;
+                vec2 n = floor( x );
+                vec2 f = fract( x );
 
-                return vec2(
-                    distance(center,px0) - distance(center,px1),
-                    distance(center,py0) - distance(center,py1)
-                );
+                float F1 = 8.0;
+                float F2 = 8.0;
+
+                for( int j=-1; j<=1; j++ )
+                    for( int i=-1; i<=1; i++ ){
+                        vec2 g = vec2(i,j);
+                        vec2 o = hash( n + g );
+
+                        o = 0.5 + 0.41*sin( time + 6.2831*o );
+                        vec2 r = g - f + o;
+
+                    float d = 	distance_type < 1.0 ? dot(r,r)  :				// euclidean^2
+                                  distance_type < 2.0 ? sqrt(dot(r,r)) :			// euclidean
+                                distance_type < 3.0 ? abs(r.x) + abs(r.y) :		// manhattan
+                                distance_type < 4.0 ? max(abs(r.x), abs(r.y)) :	// chebyshev
+                                0.0;
+
+                    if( d<F1 ) {
+                        F2 = F1;
+                        F1 = d;
+                    } else if( d<F2 ) {
+                        F2 = d;
+                    }
+                }
+
+                float c = function < 1.0 ? F1 :
+                          function < 2.0 ? F2 :
+                          function < 3.0 ? F2-F1 :
+                          function < 4.0 ? (F1+F2)/2.0 :
+                          0.0;
+
+                if( multiply_by_F1 )	c *= F1;
+                if( inverse )			c = 1.0 - c;
+
+                return c;
             }
 
-            float getAngle(vec2 v) {
-                vec2 ref = vec2(1.);
-                return acos(dot(v,ref)/(length(v)*length(ref)));
+            vec2 rotateAroundPoint(vec2 p, vec2 a, float ang) {
+                float x = a.x + (p.x-a.x)*cos(ang) - (p.y-a.y)*sin(ang);
+                float y = a.y + (p.x-a.x)*sin(ang) + (p.y-a.y)*cos(ang);
+                return vec2(x,y);
             }
 
-            float rand(vec2 n) {
-                return fract(sin(dot(n, vec2(12.9898, 4.1414))) * 43758.5453);
+            const mat2 m2 = mat2(0.8,-0.6,0.6,0.8);
+            float sfbm( in vec3 p ){
+                float f = 0.0;
+                f += 0.5000*snoise( p ); p.xy = m2*p.xy*2.02;
+                f += 0.2500*snoise( p ); p.xy = m2*p.xy*2.03;
+                f += 0.1250*snoise( p ); p.xy = m2*p.xy*2.01;
+                f += 0.0625*snoise( p );
+
+                return f/0.9375;
+            }
+
+            float vfbm( in vec3 p ){
+                float f = 0.0;
+                f += 0.5000*voronoi( p ); p.xy = m2*p.xy*2.02;
+                f += 0.2500*voronoi( p ); p.xy = m2*p.xy*2.03;
+                f += 0.1250*voronoi( p ); p.xy = m2*p.xy*2.01;
+                f += 0.0625*voronoi( p );
+
+                return f/0.9375;
             }
 
             void main() {
@@ -209,38 +203,27 @@
                 ms.x     *= u_resolution.x/u_resolution.y;
                 center.x *= u_resolution.x/u_resolution.y;
 
-                float c_scale = 3.0;
-                st     *= c_scale;
-                ms     *= c_scale;
-                center *= c_scale;
-
+                float c_scale = 2.;
+                st       *= c_scale;
+                ms       *= c_scale;
+                center   *= c_scale;
 
                 float t_scale = 0.1;
                 float s_time = u_time * t_scale;
 
 
-                st.x += snoise(vec3(st,s_time))/10.;
-                st.y += snoise(vec3(st,s_time+100.))/10.;
+                vec2 rotSt = st + vec2(snoise(vec3(st,s_time/5.)),snoise(vec3(st,s_time/10.)));
+                vec2 newSt = rotateAroundPoint(st,rotSt,vfbm(vec3(st,s_time))*200.);
 
-                vec3 color = vec3(0.);
+                vec3 color = vec3(
+                    snoise(vec3(newSt,s_time-.1)),
+                    snoise(vec3(newSt,s_time)),
+                    snoise(vec3(newSt,s_time+.1))
+                );
 
-                float curNoise = voronoi(st,s_time);
-
-                vec2 curSlope = getSlope(st,.001,s_time);
-
-                if (curNoise > .8) {
-                    color = vec3(1.,0.,0.);
-                }
-
-                if ( sin(getAngle(curSlope)*pow(M_PI,M_PI)+1.) > (.8+curNoise/10.)*snoise(vec3(st*5.,s_time)) && curNoise > .5 && curNoise < .8 && length(curSlope) > 0.00199) {
-                    color += 1.;
-                }
-
-                gl_FragColor = vec4(color - rand(st)/5.,1.);
+                gl_FragColor = vec4(color,1.);
             }
         </script>
-
-
     </head>
     <body>
         <div id="container"></div>
