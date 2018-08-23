@@ -154,7 +154,7 @@
                 vec3 color = vec3(
                     fbm(vec3(newSt,s_time-.15)),
                     fbm(vec3(newSt,s_time)),
-                    fbm(vec3(newSt,s_time+.15))s
+                    fbm(vec3(newSt,s_time+.15))
                 ) + 0.3;
 
                 gl_FragColor = vec4(color,1.);
