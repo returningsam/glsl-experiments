@@ -14,6 +14,7 @@ function init() {
 
     uniforms = {
         u_time: { type: "f", value: 1.0 },
+        u_seed: { type: "f", value: Math.random() * 1000.0 },
         u_resolution: { type: "v2", value: new THREE.Vector2() },
         u_mouse: { type: "v2", value: new THREE.Vector2() }
     };

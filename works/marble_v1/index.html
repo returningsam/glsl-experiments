@@ -33,6 +33,7 @@
 
             uniform vec2  u_resolution;
             uniform float u_time;
+            uniform float u_seed;
             uniform vec2  u_mouse;
 
             vec4 permute(vec4 x){return mod(((x*34.0)+1.0)*x, 289.0);}
@@ -145,10 +146,10 @@
                 center   *= c_scale;
 
                 float t_scale = 0.01;
-                float s_time = u_time * t_scale;
+                float s_time = u_time * t_scale + u_seed;
 
 
-                vec2 rotSt = st + vec2(fbm(vec3(st,s_time)),fbm(vec3(st,s_time))) * 5. * (pow((sin(s_time*M_PI*2.)/1.5),2.));
+                vec2 rotSt = st + vec2(fbm(vec3(st,s_time*5.))) * 5. * (pow((sin(s_time*M_PI*2. - fbm(vec3(st,s_time*10.))/2.)/1.5),2.));
                 vec2 newSt = rotateAroundPoint(st,rotSt,fbm(vec3(st,s_time))*50.);
 
                 vec3 color = vec3(
