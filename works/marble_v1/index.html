@@ -149,7 +149,7 @@
                 float s_time = u_time * t_scale + u_seed;
 
 
-                vec2 rotSt = st + vec2(fbm(vec3(st,s_time*5.))) * 5. * (pow((sin(s_time*M_PI*2. - fbm(vec3(st,s_time*10.))/2.)/1.5),2.));
+                vec2 rotSt = st + vec2(fbm(vec3(st,s_time*5.))) * 5. * (pow((fbm(vec3(st/5.,s_time*2.))),2.));
                 vec2 newSt = rotateAroundPoint(st,rotSt,fbm(vec3(st,s_time))*50.);
 
                 vec3 color = vec3(
