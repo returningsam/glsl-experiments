@@ -19,7 +19,7 @@ vec4 grad4(float j, vec4 ip){
 
 float snoise(vec4 v){
     const vec2  C = vec2( 0.138196601125010504,  // (5 - sqrt(5))/20  G4
-                        0.309016994374947451); // (sqrt(5) - 1)/4   F4
+                          0.309016994374947451); // (sqrt(5) - 1)/4   F4
     // First corner
     vec4 i  = floor(v + dot(v, C.yyyy) );
     vec4 x0 = v -   i + dot(i, C.xxxx);
