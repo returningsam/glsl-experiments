@@ -2,7 +2,7 @@
 <html lang="en" dir="ltr">
     <head>
         <meta charset="utf-8">
-        <title>glsl_template</title>
+        <title>blobby_noise</title>
         <style media="screen">
             html, body, canvas {
                 overflow: hidden;
@@ -194,8 +194,6 @@
                 return fract(sin(dot(n, vec2(12.9898, 4.1414))) * 43758.5453);
             }
 
-            vec3 permute3(vec3 x) { return mod(((x*34.0)+1.0)*x, 289.0); }
-
             void main() {
                 vec2 st     = gl_FragCoord.xy/u_resolution.xy;
                 vec2 ms     = 2. * vec2(u_mouse.x,u_mouse.y)/u_resolution.xy;
@@ -234,7 +232,7 @@
                     color = vec3(0.,0.,1.);
                 }
 
-                if ( snoise(vec3(st,getAngle(curSlope)*50.)) > (.8+curNoise/10.)*snoise(vec3(st*5.,s_time)) && curNoise > .5 && curNoise < .8 && length(curSlope) > 0.00199) {
+                if ( sin(getAngle(curSlope)*pow(M_PI,M_PI)+1.) > (.8+curNoise/10.)*snoise(vec3(st*5.,s_time)) && curNoise > .5 && curNoise < .8 && length(curSlope) > 0.00199) {
                     color += 1.;
                 }
 

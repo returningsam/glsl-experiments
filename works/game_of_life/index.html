@@ -2,7 +2,7 @@
 <html lang="en" dir="ltr">
     <head>
         <meta charset="utf-8">
-        <title>glsl_template</title>
+        <title>game_of_life</title>
         <style media="screen">
             html, body, canvas {
                 overflow: hidden;
@@ -154,10 +154,6 @@
                 ms.x     *= u_resolution.x/u_resolution.y;
                 center.x *= u_resolution.x/u_resolution.y;
 
-                float curFBM = fbm(vec3(st/2.,u_time/20.));
-
-
-
                 vec2 pixel = 1./u_resolution;
                 vec3 t_l  = texture2D(backbuffer,texCoords + pixel * vec2(-1.,0.)).xyz;
                 vec3 t_r  = texture2D(backbuffer,texCoords + pixel * vec2( 1.,0.)).xyz;
@@ -190,9 +186,11 @@
                     }
                 }
 
+                st.x += 0.1*snoise(vec3(st,(u_time/10.)));
+                st.y += 0.1*snoise(vec3(st,(u_time/10.)+10.));
 
-                // if (distance(st,ms) < 0.05 && u_mouse_down) {
-                if (snoise(vec3(st*10.,u_time/5.)) < 0.1 && u_mouse_down) {
+                if (distance(st,ms) < 0.05 && u_mouse_down) {
+                // if (snoise(vec3(st*10.,u_time/5.)) < 0.1 && u_mouse_down) {
                     color = vec3(1.);
                 }
 
