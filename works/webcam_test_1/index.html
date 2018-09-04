@@ -2,7 +2,7 @@
 <html lang="en" dir="ltr">
     <head>
         <meta charset="utf-8">
-        <title>backbuffer_blob</title>
+        <title>glsl_template</title>
         <style media="screen">
             html, body, canvas {
                 overflow: hidden;
@@ -19,6 +19,7 @@
         <script id="vertexShader" type="x-shader/x-vertex">
             precision highp float;
             precision highp int;
+
             varying vec2 vUv;
 
             void main() {
@@ -29,19 +30,23 @@
 
 
         <script id="fragmentShader" type="x-shader/x-fragment">
-            #define M_PI 3.1415926535897932384626433832795
-            #define BL_SPREAD       1
+            #define M_PI       3.1415926535897932384626433832795
+            #define BL_SPREAD  1
             precision highp float;
             precision highp int;
 
             uniform vec2  u_resolution;
+            uniform vec2  u_vid_dims;
             uniform float u_time;
             uniform vec2  u_mouse;
+            uniform sampler2D vid_texture;
             uniform sampler2D backbuffer;
-            uniform bool  u_mouse_down;
-            uniform float u_seed;
 
             varying vec2 vUv;
+
+            float max3 (vec3 v) {
+                return max(max(v.x, v.y), v.z);
+            }
 
             vec4 permute(vec4 x){return mod(((x*34.0)+1.0)*x, 289.0);}
             vec4 taylorInvSqrt(vec4 r){return 1.79284291400159 - 0.85373472095314 * r;}
@@ -115,55 +120,13 @@
                                         dot(p2,x2), dot(p3,x3) ) );
             }
 
-            const mat2 m2 = mat2(0.8,-0.6,0.6,0.8);
-            float fbm( in vec3 p ){
-                float f = 0.0;
-                f += 0.5000*snoise( p ); p.xy = m2*p.xy*2.02;
-                f += 0.2500*snoise( p ); p.xy = m2*p.xy*2.03;
-                f += 0.1250*snoise( p ); p.xy = m2*p.xy*2.01;
-                f += 0.0625*snoise( p );
-
-                return f/0.9375;
-            }
-
-            vec3 textureLookup(vec2 st) {
-                return texture2D(backbuffer,st).xyz;
-            }
-
-            vec2 rotateAroundPoint(vec2 point, vec2 center, float angle) {
-                float x = center.x + (point.x-center.x)*cos(angle) - (point.y-center.y)*sin(angle);
-                float y = center.y + (point.x-center.x)*sin(angle) + (point.y-center.y)*cos(angle);
-                return vec2(x,y);
-            }
-
-            float angleBetween(vec2 v1, vec2 v2) {
-                return acos(dot(v1, v2)/(length(v1)*length(v2)));
-            }
-
-            int countOutward(vec2 st, vec2 center, vec2 t_l,vec2 t_r,vec2 t_t,vec2 t_b,vec2 t_tl,vec2 t_tr,vec2 t_bl,vec2 t_br) {
-                int count = 0;
-                if (distance(st,t_l) < distance(center,st) && length(textureLookup(t_l)) > 0.5) count++;
-                if (distance(st,t_r) < distance(center,st) && length(textureLookup(t_r)) > 0.5) count++;
-                if (distance(st,t_t) < distance(center,st) && length(textureLookup(t_t)) > 0.5) count++;
-                if (distance(st,t_b) < distance(center,st) && length(textureLookup(t_b)) > 0.5) count++;
-                if (distance(st,t_tl) < distance(center,st) && length(textureLookup(t_tl)) > 0.5) count++;
-                if (distance(st,t_tr) < distance(center,st) && length(textureLookup(t_tr)) > 0.5) count++;
-                if (distance(st,t_bl) < distance(center,st) && length(textureLookup(t_bl)) > 0.5) count++;
-                if (distance(st,t_br) < distance(center,st) && length(textureLookup(t_br)) > 0.5) count++;
-                return count;
-            }
-
-            vec3 getSum(vec2 t_l,vec2 t_r,vec2 t_t,vec2 t_b,vec2 t_tl,vec2 t_tr,vec2 t_bl,vec2 t_br) {
-                return (textureLookup(t_l) + textureLookup(t_r) + textureLookup(t_t) + textureLookup(t_b) + textureLookup(t_tl) + textureLookup(t_tr) + textureLookup(t_bl) + textureLookup(t_br))/8.;
-            }
-
-            vec3 getBleedSum(vec2 st, vec2 pixel) {
+            vec3 getBleedSum(sampler2D tex, vec2 st, vec2 pixel) {
                 vec3 sum = vec3(0.);
                 float count = 0.;
                 for (int y = -BL_SPREAD; y <= BL_SPREAD; y++) {
                     for (int x = -BL_SPREAD; x <= BL_SPREAD; x++) {
-                        if (x != 0 || y != 0) {
-                            sum += textureLookup(st + pixel*vec2(float(x),float(y)));
+                        if (x == 0 || y != 0) {
+                            sum += texture2D(tex,st + pixel*vec2(float(x),float(y))).xyz;
                             count += 1.;
                         }
                     }
@@ -172,10 +135,19 @@
             }
 
             void main() {
+                float scrRatio = u_resolution.x/u_resolution.y;
+                float vidRatio = u_vid_dims.x/u_vid_dims.y;
+
                 vec2 st     = gl_FragCoord.xy/u_resolution.xy;
                 vec2 ms     = 2. * vec2(u_mouse.x,u_mouse.y)/u_resolution.xy;
                 ms.y        = (-ms.y) + 1.;
-                vec2 center = vec2(.5,.5);
+                vec2 center = vec2(0.5,0.5);
+
+
+                // scale vUv texture coordinates to cover screen with video texture
+                vec2 nCoord = scrRatio < vidRatio ? vec2(u_vid_dims.x * u_resolution.y / u_vid_dims.y, u_resolution.y) : vec2(u_resolution.x, u_vid_dims.y * u_resolution.x / u_vid_dims.x);
+                vec2 offset = (scrRatio < vidRatio ? vec2((nCoord.x - u_resolution.x) / 2.0, 0.0) : vec2(0.0, (nCoord.y - u_resolution.y) / 2.0)) / nCoord;
+                vec2 vPos = vUv * u_resolution / nCoord + offset;
 
                 // now we scale the x coordinate to make the x values to
                 // represent the same number of pixels as the y values.
@@ -186,38 +158,24 @@
                 ms.x     *= u_resolution.x/u_resolution.y;
                 center.x *= u_resolution.x/u_resolution.y;
 
-                float s_time = u_time + u_seed;
+                vec3 vid_color = texture2D(vid_texture,vPos).xyz;
+                vec2 pixel = 5./u_resolution.xy;
+                vec3 bac_color = texture2D(backbuffer,vUv).xyz*0.95;
 
-                // float curFBM = fbm(vec3(st,s_time/20.));
+                vec2 texCoord = vPos;
 
-                vec3 prevColor = textureLookup(vUv);
 
-                vec2 pixel = (.0001)/u_resolution;
-                float rotAng = snoise(vec3(st/10.,(u_time/40.)+u_seed)) * M_PI/50.;
-                float rotAmt = 2.5;
-                vec2 texRotPoint = vec2(vUv.x+rotAmt*snoise(vec3(st,(u_time/40.)+u_seed)),vUv.y+rotAmt*snoise(vec3(st,(u_time/40.)+u_seed+53.)));
-                vec2 texCoord = rotateAroundPoint(vUv,texRotPoint,rotAng);
+                vec3 color = bac_color;
 
-                vec3 sum = getBleedSum(texCoord,pixel)*vec3(0.97301,0.572354,0.2134);
-
-                vec3 color = vec3(0.);
-
-                st.x += u_resolution.x*0.00008*snoise(vec3(st/2.,(u_time/5.)+29.+u_seed));
-                st.y += u_resolution.y*0.00008*snoise(vec3(st/2.,(u_time/5.)+31.+u_seed));
-
-                // center.x += u_resolution.x*0.0001*snoise(vec3(st,(u_time/20.)+38106.+u_seed));
-                // center.y += u_resolution.y*0.0001*snoise(vec3(st,(u_time/20.)+59302.+u_seed));
-
-                color += sum;
-
-                if (1.1-distance(st,center) < 0.7) {
-                // if (snoise(vec3(st,u_time/20.)) < 0.1) {
-                    color += (vec3(1.)-(sum));
+                if (abs(max3(vid_color-bac_color)) > .93) {
+                    color += max3(vid_color-bac_color);
                 }
 
                 gl_FragColor = vec4(color,1.);
             }
         </script>
+
+
     </head>
     <body>
         <div id="container"></div>

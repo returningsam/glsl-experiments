@@ -7,3 +7,7 @@ vec2 rotateAroundPoint(vec2 point, vec2 center, float angle) {
 float angleBetween(vec2 v1, vec2 v2) {
     return acos(dot(v1, v2)/(abs(v1)*abs(v2));
 }
+
+float max3 (vec3 v) {
+    return max (max (v.x, v.y), v.z);
+}
