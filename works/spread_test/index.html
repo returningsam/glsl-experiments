@@ -2,7 +2,7 @@
 <html lang="en" dir="ltr">
     <head>
         <meta charset="utf-8">
-        <title>glsl_template</title>
+        <title>spread_test</title>
         <style media="screen">
             html, body, canvas {
                 overflow: hidden;
@@ -19,7 +19,6 @@
         <script id="vertexShader" type="x-shader/x-vertex">
             precision highp float;
             precision highp int;
-
             varying vec2 vUv;
 
             void main() {
@@ -30,30 +29,27 @@
 
 
         <script id="fragmentShader" type="x-shader/x-fragment">
-            #define M_PI       3.1415926535897932384626433832795
-            #define BL_SPREAD  1
+            #define M_PI 3.1415926535897932384626433832795
+            #define BL_SUM_SPREAD 1
+            #define BL_SPREAD 5
             precision highp float;
             precision highp int;
 
             uniform vec2  u_resolution;
-            uniform vec2  u_vid_dims;
             uniform float u_time;
             uniform vec2  u_mouse;
-            uniform sampler2D vid_texture;
             uniform sampler2D backbuffer;
+            uniform bool  u_mouse_down;
+            uniform float u_seed;
 
             varying vec2 vUv;
-
-            float max3 (vec3 v) {
-                return max(max(v.x, v.y), v.z);
-            }
 
             vec4 permute(vec4 x){return mod(((x*34.0)+1.0)*x, 289.0);}
             vec4 taylorInvSqrt(vec4 r){return 1.79284291400159 - 0.85373472095314 * r;}
 
             float snoise(vec3 v){
                 const vec2  C = vec2(1.0/6.0, 1.0/3.0) ;
-                const vec4  D = vec4(0.0, 0.5, 1.0, 2.0);
+                const vec4  D = vec4(0.3, 0.5, 1.0, 2.0);
 
                 // First corner
                 vec3 i  = floor(v + dot(v, C.yyy) );
@@ -120,13 +116,41 @@
                                         dot(p2,x2), dot(p3,x3) ) );
             }
 
-            vec3 getBleedSum(sampler2D tex, vec2 st, vec2 pixel) {
+            const mat2 m2 = mat2(0.8,-0.6,0.6,0.8);
+            float fbm( in vec3 p ){
+                float f = 0.0;
+                f += 0.5000*snoise( p ); p.xy = m2*p.xy*2.02;
+                f += 0.2500*snoise( p ); p.xy = m2*p.xy*2.03;
+                f += 0.1250*snoise( p ); p.xy = m2*p.xy*2.01;
+                f += 0.0625*snoise( p );
+
+                return f/0.9375;
+            }
+
+            int countNonZero(vec3 t_l,vec3 t_r,vec3 t_t,vec3 t_b,vec3 t_tl,vec3 t_tr,vec3 t_bl,vec3 t_br) {
+                int count = 0;
+                if (length(t_l) > 0.5) count++;
+                if (length(t_r) > 0.5) count++;
+                if (length(t_t) > 0.5) count++;
+                if (length(t_b) > 0.5) count++;
+                if (length(t_tl) > 0.5) count++;
+                if (length(t_tr) > 0.5) count++;
+                if (length(t_bl) > 0.5) count++;
+                if (length(t_br) > 0.5) count++;
+                return count;
+            }
+
+            vec3 textureLookup(vec2 st, sampler2D tex) {
+                return texture2D(tex,st).xyz;
+            }
+
+            vec3 getBleedSum(vec2 st, sampler2D tex, vec2 pixel) {
                 vec3 sum = vec3(0.);
                 float count = 0.;
-                for (int y = -BL_SPREAD; y <= BL_SPREAD; y++) {
-                    for (int x = -BL_SPREAD; x <= BL_SPREAD; x++) {
-                        if (x == 0 || y != 0) {
-                            sum += texture2D(tex,st + pixel*vec2(float(x),float(y))).xyz;
+                for (int y = -BL_SUM_SPREAD; y <= BL_SUM_SPREAD; y++) {
+                    for (int x = -BL_SUM_SPREAD; x <= BL_SUM_SPREAD; x++) {
+                        if (x != 0 || y != 0) {
+                            sum += textureLookup(st + pixel*vec2(float(x)/(float(x*y)),float(y)/(float(x*y))),tex);
                             count += 1.;
                         }
                     }
@@ -134,20 +158,45 @@
                 return sum/count;
             }
 
-            void main() {
-                float scrRatio = u_resolution.x/u_resolution.y;
-                float vidRatio = u_vid_dims.x/u_vid_dims.y;
+            vec2 getBleedSlope(vec2 st, sampler2D tex, vec2 pixel) {
+                vec2 slope = vec2(0.);
+                float count = 0.;
+                for (int y = -BL_SPREAD; y <= BL_SPREAD; y++) {
+                    for (int x = -BL_SPREAD; x <= BL_SPREAD; x++) {
+                        if (abs(float(x)) == float(BL_SPREAD) || abs(float(y)) == float(BL_SPREAD)) {
+                            vec3 curTexColor = textureLookup(st + pixel*vec2(float(x),float(y)),tex);
+                            if (x != 0 || y != 0 && length(curTexColor) > 0.5) {
+                                slope += vec2(float(x)*length(curTexColor),float(y)*length(curTexColor));
+                                count += 1.;
+                            }
+                        }
+                    }
+                }
+                return (slope/count);
+            }
 
+            float getBleedCount(vec2 st, sampler2D tex, vec2 pixel) {
+                float count = 0.;
+                float total = count;
+                for (int y = -BL_SUM_SPREAD; y <= BL_SUM_SPREAD; y++) {
+                    for (int x = -BL_SUM_SPREAD; x <= BL_SUM_SPREAD; x++) {
+                        if ((abs(float(x)) == float(BL_SUM_SPREAD) || abs(float(y)) == float(BL_SUM_SPREAD))) {
+                            vec3 curTexColor = textureLookup(st + pixel*vec2(float(x),float(y)),tex);
+                            if (length(curTexColor) > 0.5)  count += 1.;
+                            total += 1.;
+                        }
+                    }
+                }
+                return count/max(0.0000001,total);
+            }
+
+            void main() {
                 vec2 st     = gl_FragCoord.xy/u_resolution.xy;
                 vec2 ms     = 2. * vec2(u_mouse.x,u_mouse.y)/u_resolution.xy;
                 ms.y        = (-ms.y) + 1.;
                 vec2 center = vec2(0.5,0.5);
 
-
-                // scale vUv texture coordinates to cover screen with video texture
-                vec2 nCoord = scrRatio < vidRatio ? vec2(u_vid_dims.x * u_resolution.y / u_vid_dims.y, u_resolution.y) : vec2(u_resolution.x, u_vid_dims.y * u_resolution.x / u_vid_dims.x);
-                vec2 offset = (scrRatio < vidRatio ? vec2((nCoord.x - u_resolution.x) / 2.0, 0.0) : vec2(0.0, (nCoord.y - u_resolution.y) / 2.0)) / nCoord;
-                vec2 vPos = vUv * u_resolution / nCoord + offset;
+                vec2 texCoords = vUv;
 
                 // now we scale the x coordinate to make the x values to
                 // represent the same number of pixels as the y values.
@@ -158,24 +207,29 @@
                 ms.x     *= u_resolution.x/u_resolution.y;
                 center.x *= u_resolution.x/u_resolution.y;
 
-                vec3 vid_color = texture2D(vid_texture,vPos).xyz;
-                vec2 pixel = 1./u_resolution.xy;
-                vec3 bac_color = texture2D(backbuffer,vUv).xyz*0.9;
+                vec2 pixel = 1./u_resolution;
 
-                vec2 texCoord = vPos;
+                // vec3 sum   = getBleedSum(texCoords,backbuffer,pixel);
+                vec2 slope = getBleedSlope(texCoords,backbuffer,pixel);
+                vec3 prevColor = texture2D(backbuffer,texCoords).xyz;
 
+                // vec3 colorInDist = getBleedSum(texCoords + slope,backbuffer,pixel);
+                float neighbRatio = getBleedCount(texCoords,backbuffer,pixel);
 
-                vec3 color = bac_color;
+                vec3 color = prevColor;
 
-                if (abs(max3(abs(vid_color)-abs(bac_color))) > .8) {
-                    color += max3(vid_color-bac_color);
+                // if (length(prevColor) < 0.001 && min(abs(slope.x),abs(slope.y)) > 0.75) {
+                if (length(prevColor) < 0.001 && neighbRatio < 0.65 && neighbRatio > 0.3 && min(abs(slope.x),abs(slope.y)) > 0.7) {
+                    color += 1.;
+                }
+
+                if (distance(st,ms) < 0.001 && u_mouse_down) {
+                    color += 1.;
                 }
 
                 gl_FragColor = vec4(color,1.);
             }
         </script>
-
-
     </head>
     <body>
         <div id="container"></div>

@@ -19,7 +19,7 @@ function init() {
         u_mouse: { type: "v2", value: new THREE.Vector2() },
         backbuffer: { type: "t", value: null },
         u_mouse_down: { type: "b", value: false },
-        u_seed: { type: "f", value: Math.random()*100 }
+        u_seed:       { type: "f", value: Math.random()*10}
     };
 
     var material = new THREE.ShaderMaterial( {
@@ -60,8 +60,6 @@ function handleMouseUp() {
 
 function onWindowResize( event ) {
     renderer.setSize( window.innerWidth, window.innerHeight );
-    rt1.setSize( window.innerWidth*2, window.innerHeight*2 );
-    rt2.setSize( window.innerWidth*2, window.innerHeight*2 );
     uniforms.u_resolution.value.x = renderer.domElement.width;
     uniforms.u_resolution.value.y = renderer.domElement.height;
 }

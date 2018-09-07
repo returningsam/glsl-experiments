@@ -9,5 +9,17 @@ float angleBetween(vec2 v1, vec2 v2) {
 }
 
 float max3 (vec3 v) {
-    return max (max (v.x, v.y), v.z);
+    return max(max(v.x, v.y), v.z);
+}
+
+float min3 (vec3 v) {
+    return min(min(v.x, v.y), v.z);
+}
+
+vec3 scolor (float c_time) {
+    return vec3(
+        snoise2(vec2(c_time)),
+        snoise2(vec2(c_time+0.5)),
+        snoise2(vec2(c_time+1.0)),
+    );
 }

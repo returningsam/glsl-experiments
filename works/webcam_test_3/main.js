@@ -1,9 +1,25 @@
 var container;
-var camera, scene, renderer;
+var camera, scene, renderer, video, videoTexture;
 var uniforms;
 var rt1,rt2;
 
+function initWebcam() {
+
+    video = document.createElement('video');
+    video.width = window.innerWidth*2;
+    video.height = window.innerHeight*2;
+    video.playbackRate = 3.0;
+    navigator.mediaDevices.getUserMedia({ video: true, audio: false }).then(function(stream) {
+        video.srcObject = stream;
+        video.play();
+    }).catch(function(err) {
+        console.log("An error occured! " + err);
+    });
+
+}
+
 function init() {
+    initWebcam();
     container = document.getElementById( 'container' );
 
     camera = new THREE.Camera();
@@ -12,14 +28,17 @@ function init() {
     scene = new THREE.Scene();
 
     var geometry = new THREE.PlaneBufferGeometry( 2, 2 );
+    videoTexture = new THREE.Texture(video);
+    videoTexture.minFilter = THREE.LinearFilter;
+
 
     uniforms = {
         u_time: { type: "f", value: 1.0 },
         u_resolution: { type: "v2", value: new THREE.Vector2() },
         u_mouse: { type: "v2", value: new THREE.Vector2() },
+        vid_texture: { type: "t", value: videoTexture },
+        u_vid_dims: { type: "v2", value: new THREE.Vector2(video.videoWidth,video.videoHeight) },
         backbuffer: { type: "t", value: null },
-        u_mouse_down: { type: "b", value: false },
-        u_seed: { type: "f", value: Math.random()*100 }
     };
 
     var material = new THREE.ShaderMaterial( {
@@ -41,27 +60,15 @@ function init() {
 
     onWindowResize();
     window.addEventListener( 'resize', onWindowResize, false );
-    window.addEventListener( 'mousedown', handleMouseDown, false );
-    window.addEventListener( 'mouseup', handleMouseUp, false );
 
     document.onmousemove = function(e){
-        uniforms.u_mouse.value.x = e.clientX;
-        uniforms.u_mouse.value.y = e.clientY;
+      uniforms.u_mouse.value.x = e.pageX
+      uniforms.u_mouse.value.y = e.pageY
     }
-}
-
-function handleMouseDown() {
-    uniforms.u_mouse_down.value = true;
-}
-
-function handleMouseUp() {
-    uniforms.u_mouse_down.value = false;
 }
 
 function onWindowResize( event ) {
     renderer.setSize( window.innerWidth, window.innerHeight );
-    rt1.setSize( window.innerWidth*2, window.innerHeight*2 );
-    rt2.setSize( window.innerWidth*2, window.innerHeight*2 );
     uniforms.u_resolution.value.x = renderer.domElement.width;
     uniforms.u_resolution.value.y = renderer.domElement.height;
 }
@@ -80,6 +87,11 @@ function swapBuffer() {
 
 function render() {
     uniforms.u_time.value += 0.05;
+    uniforms.u_vid_dims.value.x = video.videoWidth;
+    uniforms.u_vid_dims.value.y = video.videoHeight;
+    if ( video.readyState === video.HAVE_ENOUGH_DATA ) {
+        videoTexture.needsUpdate = true;
+    }
     renderer.render(scene, camera, rt1, false);
     renderer.render(scene, camera);
     swapBuffer();

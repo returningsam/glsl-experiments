@@ -249,17 +249,17 @@
 
                 vec3 color = vec3(0.);
 
-                st.x += u_resolution.x*0.00001*snoise(vec3(st/2.,(u_time/5.)+29.+u_seed));
-                st.y += u_resolution.y*0.00001*snoise(vec3(st/2.,(u_time/5.)+31.+u_seed));
+                st.x += u_resolution.x*0.000005*snoise(vec3(st/2.,(u_time/5.)+29.+u_seed));
+                st.y += u_resolution.y*0.000005*snoise(vec3(st/2.,(u_time/5.)+31.+u_seed));
 
-                center.x += u_resolution.x*0.0001*snoise(vec3(st,(u_time/20.)+38106.+u_seed));
-                center.y += u_resolution.y*0.0001*snoise(vec3(st,(u_time/20.)+59302.+u_seed));
+                center.x += u_resolution.x*0.0001*snoise(vec3(st,(u_time/20.)+381.+u_seed));
+                center.y += u_resolution.y*0.0001*snoise(vec3(st,(u_time/20.)+593.+u_seed));
 
                 color += sum;
 
                 float vor = voronoi(vec3(st*10.,u_time/2.));
 
-                if (1.1-distance(st,center) < 0.7) {
+                if (1.1-distance(st,center) < 0.8) {
                 // if (vor < 0.3 && vor > 0.15) {
                     color += (1.-(sum))*10.;
                 }

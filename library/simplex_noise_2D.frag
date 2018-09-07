@@ -1,8 +1,8 @@
 // Source: https://gist.github.com/patriciogonzalezvivo/670c22f3966e662d2f83
 
-vec3 permute(vec3 x) { return mod(((x*34.0)+1.0)*x, 289.0); }
+vec3 permute2(vec3 x) { return mod(((x*34.0)+1.0)*x, 289.0); }
 
-float snoise(vec2 v){
+float snoise2(vec2 v){
     const vec4 C = vec4(0.211324865405187, 0.366025403784439,
            -0.577350269189626, 0.024390243902439);
     vec2 i  = floor(v + dot(v, C.yy) );
@@ -12,7 +12,7 @@ float snoise(vec2 v){
     vec4 x12 = x0.xyxy + C.xxzz;
     x12.xy -= i1;
     i = mod(i, 289.0);
-    vec3 p = permute( permute( i.y + vec3(0.0, i1.y, 1.0 ))
+    vec3 p = permute2( permute2( i.y + vec3(0.0, i1.y, 1.0 ))
     + i.x + vec3(0.0, i1.x, 1.0 ));
     vec3 m = max(0.5 - vec3(dot(x0,x0), dot(x12.xy,x12.xy),
     dot(x12.zw,x12.zw)), 0.0);
