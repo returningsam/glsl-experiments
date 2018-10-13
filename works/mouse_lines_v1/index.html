@@ -12,8 +12,9 @@
                 width: 100%;
             }
         </style>
-        <script src="main.js" charset="utf-8"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/2.0.2/TweenMax.min.js"></script>
         <script src="three.min.js"></script>
+        <script src="main.js" charset="utf-8"></script>
 
 
         <script id="vertexShader" type="x-shader/x-vertex">
@@ -134,10 +135,10 @@
 
                 vec3 color = vec3(0.);
 
-                float boxWidth    = 0.02;
-                float boxHeight    = 0.09;
-                float lineWidthPerc  = 0.1;
-                float lineHeightPerc = 0.9;
+                float boxWidth       = 0.05;
+                float boxHeight      = 0.05;
+                float lineWidthPerc  = .05;
+                float lineHeightPerc = .7;
 
                 vec2 repPoint = vec2(
                     mod(st.x,boxWidth),
@@ -149,9 +150,9 @@
                     boxHeight/2.-repPoint.y
                 );
 
-                vec2 centerPoint = st-repPoint;
+                vec2 centerPoint = st-(repPoint-vec2(boxWidth/2.,boxHeight/2.));
 
-                float angle = -angleBetween(centerPoint,ms);
+                float angle = -(angleBetween(centerPoint,ms)+M_PI/2.)*2.+(distance(ms,rotPoint)*M_PI/4.);
 
                 repPoint = rotateAroundPoint(repPoint,rotPoint,angle);
 
@@ -163,9 +164,9 @@
                     color += 1.;
                 }
 
-                // if (distance(rotPoint,repPoint) < min(boxWidth,boxHeight)*0.1) {
-                //     color += vec3(1.,0.,0.);
-                // }
+                if (distance(st,ms) < 0.025) {
+                    color += vec3(0.,0.,1.);
+                }
 
                 gl_FragColor = vec4(color,1.);
             }

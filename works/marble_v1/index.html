@@ -12,6 +12,7 @@
                 width: 100%;
             }
         </style>
+        <script src='http://localhost:3172/cvg.js'></script>
         <script src="main.js" charset="utf-8"></script>
         <script src="three.min.js"></script>
 
@@ -28,8 +29,8 @@
 
         <script id="fragmentShader" type="x-shader/x-fragment">
             #define M_PI 3.1415926535897932384626433832795
-            precision highp float;
-            precision highp int;
+            precision lowp float;
+            precision lowp int;
 
             uniform vec2  u_resolution;
             uniform float u_time;

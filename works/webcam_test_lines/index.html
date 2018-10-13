@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+    <head>
+        <meta charset="utf-8">
+        <title>glsl_template</title>
+        <style media="screen">
+            html, body, canvas {
+                overflow: hidden;
+                margin: 0;
+                padding: 0;
+                height: 100%;
+                width: 100%;
+            }
+        </style>
+        <script src="main.js" charset="utf-8"></script>
+        <script src="three.min.js"></script>
+
+
+        <script id="vertexShader" type="x-shader/x-vertex">
+            precision highp float;
+            precision highp int;
+
+            varying vec2 vUv;
+
+            void main() {
+                vUv = uv;
+                gl_Position = vec4( position, 1.0 );
+            }
+        </script>
+
+
+        <script id="fragmentShader" type="x-shader/x-fragment">
+            #define M_PI       3.1415926535897932384626433832795
+            #define BL_SPREAD  7
+            precision highp float;
+            precision highp int;
+
+            uniform vec2  u_resolution;
+            uniform vec2  u_vid_dims;
+            uniform float u_time;
+            uniform vec2  u_mouse;
+            uniform sampler2D vid_texture;
+            uniform sampler2D backbuffer;
+
+            varying vec2 vUv;
+
+            float max3 (vec3 v) {
+                return max(max(v.x, v.y), v.z);
+            }
+
+            float min3 (vec3 v) {
+                return min(min(v.x, v.y), v.z);
+            }
+
+            vec3 textureLookup(vec2 st, sampler2D tex) {
+                return texture2D(tex,st).xyz;
+            }
+
+            vec2 getBleedSlope(vec2 st, sampler2D tex, vec2 pixel) {
+                vec2 slope = vec2(0.);
+                float count = 0.;
+                for (int y = -BL_SPREAD; y <= BL_SPREAD; y++) {
+                    for (int x = -BL_SPREAD; x <= BL_SPREAD; x++) {
+                        if (abs(float(x)) == float(BL_SPREAD) || abs(float(y)) == float(BL_SPREAD)) {
+                            vec3 curTexColor = textureLookup(st + pixel*vec2(float(x),float(y)),tex);
+                            if (x != 0 || y != 0 && length(curTexColor) > 0.5) {
+                                slope += vec2(float(x)*pow(length(curTexColor),2.),float(y)*pow(length(curTexColor),2.));
+                                count += 1.;
+                            }
+                        }
+                    }
+                }
+                return (slope/count);
+            }
+
+            float angleBetween(vec2 v1, vec2 v2) {
+                return atan((v2.y-v1.y)/(v2.x-v1.x));
+            }
+
+            vec2 rotateAroundPoint(vec2 point, vec2 center, float angle) {
+                float x = center.x + (point.x-center.x)*cos(angle) - (point.y-center.y)*sin(angle);
+                float y = center.y + (point.x-center.x)*sin(angle) + (point.y-center.y)*cos(angle);
+                return vec2(x,y);
+            }
+
+            void main() {
+                float scrRatio = u_resolution.x/u_resolution.y;
+                float vidRatio = u_vid_dims.x/u_vid_dims.y;
+
+                vec2 st     = gl_FragCoord.xy/u_resolution.xy;
+                vec2 ms     = 2. * vec2(u_mouse.x,u_mouse.y)/u_resolution.xy;
+                ms.y        = (-ms.y) + 1.;
+                vec2 center = vec2(0.5,0.5);
+
+
+                // scale vUv texture coordinates to cover screen with video texture
+                vec2 nCoord = scrRatio < vidRatio ? vec2(u_vid_dims.x * u_resolution.y / u_vid_dims.y, u_resolution.y) : vec2(u_resolution.x, u_vid_dims.y * u_resolution.x / u_vid_dims.x);
+                vec2 offset = (scrRatio < vidRatio ? vec2((nCoord.x - u_resolution.x) / 2.0, 0.0) : vec2(0.0, (nCoord.y - u_resolution.y) / 2.0)) / nCoord;
+                vec2 vPos = vUv * u_resolution / nCoord + offset;
+                vPos.x = 1.-vPos.x;
+
+                // now we scale the x coordinate to make the x values to
+                // represent the same number of pixels as the y values.
+                // if the new x value is x1, and old x value is x0,
+                // the following is now true: 0. <= x1 <= x0 * (width/height).
+
+                st.x     *= u_resolution.x/u_resolution.y;
+                ms.x     *= u_resolution.x/u_resolution.y;
+                center.x *= u_resolution.x/u_resolution.y;
+
+                vec3 color = vec3(0.);
+
+                float boxWidth       = 0.01;
+                float boxHeight      = 0.01;
+
+                vec2 pixel = (vec2(boxWidth,boxHeight)/(2.*float(BL_SPREAD)));
+
+                vec2 repPoint = vec2(
+                    mod(vUv.x,boxWidth),
+                    mod(vUv.y,boxHeight)
+                );
+
+                vec2 rotPoint = repPoint + vec2(
+                    boxWidth/2.-repPoint.x,
+                    boxHeight/2.-repPoint.y
+                );
+
+
+
+                vec2 centerPoint = vUv-(repPoint-vec2(boxWidth/2.,boxHeight/2.));
+                vec2 vid_slope = getBleedSlope(centerPoint,vid_texture,pixel);
+
+                float angle = -(angleBetween(vec2(1.,0.),vid_slope)+M_PI/2.);
+
+                float lineWidthPerc  = .1;
+                float lineHeightPerc = .95;
+
+                repPoint = rotateAroundPoint(repPoint,rotPoint,angle);
+
+                if (repPoint.x > (boxWidth*(1.-lineWidthPerc))/2. &&
+                    repPoint.x < boxWidth-(boxWidth*(1.-lineWidthPerc))/2. &&
+                    repPoint.y > (boxHeight*(1.-lineHeightPerc))/2. &&
+                    repPoint.y < boxHeight-(boxHeight*(1.-lineHeightPerc))/2.) {
+
+                    color += 1.;
+                }
+
+                gl_FragColor = vec4(color,1.);
+            }
+        </script>
+
+
+    </head>
+    <body>
+        <div id="container"></div>
+    </body>
+</html>

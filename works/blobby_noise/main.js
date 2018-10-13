@@ -36,8 +36,8 @@ function init() {
     window.addEventListener( 'resize', onWindowResize, false );
 
     document.onmousemove = function(e){
-      uniforms.u_mouse.value.x = e.pageX
-      uniforms.u_mouse.value.y = e.pageY
+        uniforms.u_mouse.value.x = e.pageX
+        uniforms.u_mouse.value.y = e.pageY
     }
 }
 
@@ -52,9 +52,23 @@ function animate() {
     render();
 }
 
+var framesRendered = 0;
+const numToRender = 3600*3;
+
 function render() {
+    if ( framesRendered < numToRender && cvg) {
+        cvg.addFrame(renderer.domElement);
+        console.log("rendered: " + ((framesRendered/numToRender)*100).toFixed(1) + "%");
+    }
+    framesRendered++;
+
     uniforms.u_time.value += 0.05;
     renderer.render( scene, camera );
+
+    if (framesRendered == numToRender) {
+        cvg.render('blobby_noise');
+        console.log("done rendering");
+    }
 }
 
 window.onload = function () {

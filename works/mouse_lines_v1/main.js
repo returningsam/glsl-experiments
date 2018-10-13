@@ -2,6 +2,8 @@ var container;
 var camera, scene, renderer;
 var uniforms;
 
+var mouseTween;
+
 function init() {
     container = document.getElementById( 'container' );
 
@@ -35,9 +37,20 @@ function init() {
     onWindowResize();
     window.addEventListener( 'resize', onWindowResize, false );
 
-    document.onmousemove = function(e){
-      uniforms.u_mouse.value.x = e.pageX
-      uniforms.u_mouse.value.y = e.pageY
+    document.onmousemove = function(e) {
+        if (TweenMax.isTweening(mouseTween)) {
+            mouseTween.updateTo({
+                x: e.pageX,
+                y: e.pageY,
+            },false);
+        }
+        else {
+            mouseTween = TweenMax.to(uniforms.u_mouse.value,0.75,{
+                x: e.pageX,
+                y: e.pageY,
+                easing: Power1.easeInOut
+            });
+        }
     }
 }
 

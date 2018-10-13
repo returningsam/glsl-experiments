@@ -76,11 +76,25 @@ function swapBuffer() {
     uniforms.backbuffer.value = rt2;
 }
 
+var framesRendered = 0;
+const numToRender = 72000;
+
 function render() {
+    // if ( framesRendered < numToRender && cvg) {
+    //     cvg.addFrame(renderer.domElement);
+    //     console.log("rendered: " + ((framesRendered/numToRender)*100).toFixed(1) + "%");
+    // }
+    // framesRendered++;
+
     uniforms.u_time.value += 0.05;
     renderer.render(scene, camera, rt1, false);
     renderer.render(scene, camera);
     swapBuffer();
+
+    // if (framesRendered == numToRender) {
+    //     cvg.render('cellular');
+    //     console.log("done rendering");
+    // }
 }
 
 window.onload = function () {

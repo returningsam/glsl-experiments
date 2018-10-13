@@ -12,12 +12,13 @@
                 width: 100%;
             }
         </style>
+        <script src='http://localhost:3172/cvg.js'></script>
         <script src="main.js" charset="utf-8"></script>
         <script src="three.min.js"></script>
 
         <script id="vertexShader" type="x-shader/x-vertex">
-            precision highp float;
-            precision highp int;
+            precision lowp float;
+            precision lowp int;
             varying vec2 vUv;
 
             void main() {
@@ -30,8 +31,8 @@
             #define M_PI 3.1415926535897932384626433832795
             #define BL_SUM_SPREAD 1
             #define BL_SPREAD 20
-            precision highp float;
-            precision highp int;
+            precision lowp float;
+            precision lowp int;
 
             uniform vec2  u_resolution;
             uniform float u_time;
@@ -163,30 +164,28 @@
             vec2 getBleedSlope(vec2 st, sampler2D tex, vec2 pixel) {
                 vec2 slope = vec2(0.);
                 float count = 0.;
-                for (int y = -BL_SPREAD; y <= BL_SPREAD; y++) {
-                    vec3 curTexColor = textureLookup(st + pixel*vec2(float(BL_SPREAD),float(y)),tex);
+                for (int i = -BL_SPREAD; i <= BL_SPREAD; i++) {
+                    vec3 curTexColor = textureLookup(st + pixel*vec2(float(BL_SPREAD),float(i)),tex);
                     if (length(curTexColor) < 0.01) {
-                        slope += vec2(float(BL_SPREAD),float(y));
+                        slope += vec2(float(BL_SPREAD),float(i));
                         count += 1.;
                     }
 
-                    curTexColor = textureLookup(st + pixel*vec2(float(-BL_SPREAD),float(y)),tex);
+                    curTexColor = textureLookup(st + pixel*vec2(float(-BL_SPREAD),float(i)),tex);
                     if (length(curTexColor) < 0.01) {
-                        slope += vec2(float(-BL_SPREAD),float(y));
-                        count += 1.;
-                    }
-                }
-
-                for (int x = -BL_SPREAD; x <= BL_SPREAD; x++) {
-                    vec3 curTexColor = textureLookup(st + pixel*vec2(float(x),float(BL_SPREAD)),tex);
-                    if (length(curTexColor) < 0.01) {
-                        slope += vec2(float(x),float(BL_SPREAD));
+                        slope += vec2(float(-BL_SPREAD),float(i));
                         count += 1.;
                     }
 
-                    curTexColor = textureLookup(st + pixel*vec2(float(x),float(-BL_SPREAD)),tex);
+                    curTexColor = textureLookup(st + pixel*vec2(float(i),float(BL_SPREAD)),tex);
                     if (length(curTexColor) < 0.01) {
-                        slope += vec2(float(x),float(-BL_SPREAD));
+                        slope += vec2(float(i),float(BL_SPREAD));
+                        count += 1.;
+                    }
+
+                    curTexColor = textureLookup(st + pixel*vec2(float(i),float(-BL_SPREAD)),tex);
+                    if (length(curTexColor) < 0.01) {
+                        slope += vec2(float(i),float(-BL_SPREAD));
                         count += 1.;
                     }
                 }
