@@ -7,15 +7,15 @@ function createCanvasTexture() {
     var canvas = document.createElement("canvas");
     var ctx = canvas.getContext("2d");
     var pxRatio = 4;
-    var fSize = 200;
+    var fSize = 200*pxRatio;
     canvas.width = window.innerWidth*pxRatio;
     canvas.height = window.innerHeight*pxRatio;
     ctx.fillStyle = "black";
     ctx.fillRect(0,0,canvas.height,canvas.width);
     ctx.fillStyle = "white";
-    ctx.font = "bolder " + (fSize*pxRatio) + "px Cormorant";
+    ctx.font = "bolder " + fSize + "px Cormorant";
     ctx.textAlign = "center";
-    ctx.fillText("As We Do",canvas.width/2,canvas.height/2 + fSize);
+    ctx.fillText("ROTATION",canvas.width/2,canvas.height/2 + (fSize/2));
     var texture = new THREE.CanvasTexture(canvas);
     texture.needsUpdate = true;
     return texture;
