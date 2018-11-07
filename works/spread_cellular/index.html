@@ -115,6 +115,35 @@
                                         dot(p2,x2), dot(p3,x3) ) );
             }
 
+            vec3 permute2(vec3 x) { return mod(((x*34.0)+1.0)*x, 289.0); }
+
+            float snoise2(vec2 v){
+                const vec4 C = vec4(0.211324865405187, 0.366025403784439,
+                       -0.577350269189626, 0.024390243902439);
+                vec2 i  = floor(v + dot(v, C.yy) );
+                vec2 x0 = v -   i + dot(i, C.xx);
+                vec2 i1;
+                i1 = (x0.x > x0.y) ? vec2(1.0, 0.0) : vec2(0.0, 1.0);
+                vec4 x12 = x0.xyxy + C.xxzz;
+                x12.xy -= i1;
+                i = mod(i, 289.0);
+                vec3 p = permute2( permute2( i.y + vec3(0.0, i1.y, 1.0 ))
+                + i.x + vec3(0.0, i1.x, 1.0 ));
+                vec3 m = max(0.5 - vec3(dot(x0,x0), dot(x12.xy,x12.xy),
+                dot(x12.zw,x12.zw)), 0.0);
+                m = m*m ;
+                m = m*m ;
+                vec3 x = 2.0 * fract(p * C.www) - 1.0;
+                vec3 h = abs(x) - 0.5;
+                vec3 ox = floor(x + 0.5);
+                vec3 a0 = x - ox;
+                m *= 1.79284291400159 - 0.85373472095314 * ( a0*a0 + h*h );
+                vec3 g;
+                g.x  = a0.x  * x0.x  + h.x  * x0.y;
+                g.yz = a0.yz * x12.xz + h.yz * x12.yw;
+                return 130.0 * dot(m, g);
+            }
+
             const mat2 m2 = mat2(0.8,-0.6,0.6,0.8);
             float fbm( in vec3 p ){
                 float f = 0.0;
@@ -122,6 +151,16 @@
                 f += 0.2500*snoise( p ); p.xy = m2*p.xy*2.03;
                 f += 0.1250*snoise( p ); p.xy = m2*p.xy*2.01;
                 f += 0.0625*snoise( p );
+
+                return f/0.9375;
+            }
+
+            float fbm2( in vec2 p ){
+                float f = 0.0;
+                f += 0.5000*snoise2( p ); p.xy = m2*p.xy*2.02;
+                f += 0.2500*snoise2( p ); p.xy = m2*p.xy*2.03;
+                f += 0.1250*snoise2( p ); p.xy = m2*p.xy*2.01;
+                f += 0.0625*snoise2( p );
 
                 return f/0.9375;
             }
@@ -197,7 +236,7 @@
                 float total = count;
                 for (int y = -BL_SUM_SPREAD; y <= BL_SUM_SPREAD; y++) {
                     for (int x = -BL_SUM_SPREAD; x <= BL_SUM_SPREAD; x++) {
-                        if (x != 0 || y != 0) {
+                        if (x != 0 && y != 0) {
                             vec3 curTexColor = textureLookup(st + pixel*vec2(float(x),float(y)),tex);
                             if (length(curTexColor) > 0.9)  count += 1.;
                             total += 1.;
@@ -205,12 +244,7 @@
                     }
                 }
 
-                if (total == 0.) {
-                    return 0.;
-                }
-                else {
-                    return count/total;
-                }
+                return count;
             }
 
             vec2 rotateAroundPoint(vec2 point, vec2 center, float angle) {
@@ -219,49 +253,19 @@
                 return vec2(x,y);
             }
 
-            vec3 permute2(vec3 x) { return mod(((x*34.0)+1.0)*x, 289.0); }
-
-            float snoise2(vec2 v){
-                const vec4 C = vec4(0.211324865405187, 0.366025403784439,
-                       -0.577350269189626, 0.024390243902439);
-                vec2 i  = floor(v + dot(v, C.yy) );
-                vec2 x0 = v -   i + dot(i, C.xx);
-                vec2 i1;
-                i1 = (x0.x > x0.y) ? vec2(1.0, 0.0) : vec2(0.0, 1.0);
-                vec4 x12 = x0.xyxy + C.xxzz;
-                x12.xy -= i1;
-                i = mod(i, 289.0);
-                vec3 p = permute2( permute2( i.y + vec3(0.0, i1.y, 1.0 ))
-                + i.x + vec3(0.0, i1.x, 1.0 ));
-                vec3 m = max(0.5 - vec3(dot(x0,x0), dot(x12.xy,x12.xy),
-                dot(x12.zw,x12.zw)), 0.0);
-                m = m*m ;
-                m = m*m ;
-                vec3 x = 2.0 * fract(p * C.www) - 1.0;
-                vec3 h = abs(x) - 0.5;
-                vec3 ox = floor(x + 0.5);
-                vec3 a0 = x - ox;
-                m *= 1.79284291400159 - 0.85373472095314 * ( a0*a0 + h*h );
-                vec3 g;
-                g.x  = a0.x  * x0.x  + h.x  * x0.y;
-                g.yz = a0.yz * x12.xz + h.yz * x12.yw;
-                return 130.0 * dot(m, g);
-            }
-
-            vec2 getSlopeRadial(vec2 st, sampler2D tex, vec2 pixel,float time) {
+            vec2 getSlopeRadial(vec2 uv, sampler2D tex, vec2 pixel,vec2 ms, vec2 st) {
                 vec2 slope = vec2(0.);
                 float count = 0.;
 
-                vec3 centTexColor = textureLookup(st,tex);
-                float angStep = (M_PI)/(float(BL_SPREAD)/2.);
-                vec2 offset = vec2(0.,(-sin(u_time+(2.-distance(st,vec2(0.5))))+2.2)*(fbm(vec3(st,time/10.))+2.2))*pixel;
+                float angStep = (2.*M_PI)/float(BL_SPREAD);
+                vec2 offset = vec2(0.,clamp(.5/log(1.+max(0.000001,distance(st,ms))),M_PI,M_PI*5.))*pixel;
                 for (int i = 0; i < BL_SPREAD; i++) {
                     float curAng  = angStep*float(i);
-                    vec2 newPoint = rotateAroundPoint(st+offset,st,curAng);
+                    vec2 newPoint = rotateAroundPoint(uv+offset,uv,curAng);
                     if (newPoint.x > 0. && newPoint.x <= 1. && newPoint.y > 0. && newPoint.y <= 1.) {
                         vec3 curTexColor = textureLookup(newPoint,tex);
                         if (length(curTexColor) <= 0.00001) {
-                            slope += (st-newPoint);
+                            slope += (uv-newPoint);
                             count += 1.;
                         }
                     }
@@ -288,27 +292,29 @@
 
                 vec2 pixel = 1./u_resolution;
 
-                vec2 slope = getSlopeRadial(texCoords,backbuffer,pixel,u_time);
+                vec2 slope = getSlopeRadial(texCoords,backbuffer,pixel,ms,st);
                 vec3 prevColor = texture2D(backbuffer,texCoords).xyz;
 
-                // vec3 colorInDist = getBleedSum(texCoords + slope,backbuffer,pixel);
-                vec3 nbrColor    = getBleedSum(texCoords - slope,backbuffer,pixel);
-                // float neighbRatio = getBleedCount(texCoords + slope,backbuffer,pixel);
+                texCoords += vec2(
+                    snoise2((st*50.) + (u_time/20.)),
+                    snoise2((st*50.) + (u_time/20. + 100.))
+                )*pixel/10.;
+
+                vec3 nbrColor    = getBleedSum(texCoords - slope,backbuffer,pixel*(log(2.5*(distance(ms,st)+1.))));
 
                 vec3 color = prevColor;
 
-                // if (length(prevColor) < 0.001 && min(abs(slope.x),abs(slope.y)) > 0.75) {
-                // if (length(prevColor) < 0.001 && abs(neighbRatio) < 100. && length(slope) > .0001) {
                 if (length(slope) < 0.5) {
                     color += nbrColor;
                 }
 
-                if (distance(st,ms) < 0.001 && u_mouse_down) {
-                    // color = (vec3(
-                    //     snoise2(vec2(u_time/10. + .1301)),
-                    //     snoise2(vec2(u_time/10. + .2543)),
-                    //     snoise2(vec2(u_time/10. + .3188))
-                    // )+1.)/2.;
+                color = step(-0.5,color);
+
+                if (distance(st,ms) < 0.005) {
+                    color = vec3(0.);
+                }
+
+                if (distance(st,ms) < 1. && u_mouse_down) {
                     color = vec3(1.);
                 }
 

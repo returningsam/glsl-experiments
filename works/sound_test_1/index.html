@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+    <head>
+        <meta charset="utf-8">
+        <title>spread_test</title>
+        <link href="https://fonts.googleapis.com/css?family=Cormorant:500,600,700" rel="stylesheet">
+        <style media="screen">
+            html, body, canvas {
+                overflow: hidden;
+                margin: 0;
+                padding: 0;
+                height: 100%;
+                width: 100%;
+            }
+        </style>
+        <script src="three.min.js"></script>
+        <script src="simplex-noise.js"></script>
+        <script src="main.js" charset="utf-8"></script>
+
+        <script id="vertexShader" type="x-shader/x-vertex">
+            precision highp float;
+            precision highp int;
+            varying vec2 vUv;
+
+            void main() {
+                vUv = uv;
+                gl_Position = vec4( position, 1.0 );
+            }
+        </script>
+
+
+        <script id="fragmentShader" type="x-shader/x-fragment">
+            #define M_PI 3.1415926535897932384626433832795
+            #define BL_SUM_SPREAD 1
+            #define BL_SPREAD 2
+            #define NUM_CHANNELS 20
+            precision highp float;
+            precision highp int;
+
+            uniform vec2  u_resolution;
+            uniform float u_time;
+            uniform vec2  u_mouse;
+            uniform sampler2D backbuffer;
+            uniform bool  u_mouse_down;
+            uniform float u_seed;
+            uniform sampler2D textTexture;
+            uniform float u_channels[NUM_CHANNELS];
+            uniform float u_last_channels[NUM_CHANNELS];
+            uniform vec3 u_channel_colors[NUM_CHANNELS];
+            uniform float u_channel_avg;
+            uniform float u_high_avg;
+            uniform float u_bass_avg;
+
+            varying vec2 vUv;
+
+            vec4 permute(vec4 x){return mod(((x*34.0)+1.0)*x, 289.0);}
+            vec4 taylorInvSqrt(vec4 r){return 1.79284291400159 - 0.85373472095314 * r;}
+
+            float snoise(vec3 v){
+                const vec2  C = vec2(1.0/6.0, 1.0/3.0) ;
+                const vec4  D = vec4(0.3, 0.5, 1.0, 2.0);
+
+                // First corner
+                vec3 i  = floor(v + dot(v, C.yyy) );
+                vec3 x0 =   v - i + dot(i, C.xxx) ;
+
+                // Other corners
+                vec3 g = step(x0.yzx, x0.xyz);
+                vec3 l = 1.0 - g;
+                vec3 i1 = min( g.xyz, l.zxy );
+                vec3 i2 = max( g.xyz, l.zxy );
+
+                //  x0 = x0 - 0. + 0.0 * C
+                vec3 x1 = x0 - i1 + 1.0 * C.xxx;
+                vec3 x2 = x0 - i2 + 2.0 * C.xxx;
+                vec3 x3 = x0 - 1. + 3.0 * C.xxx;
+
+                // Permutations
+                i = mod(i, 289.0 );
+                vec4 p = permute( permute( permute(
+                         i.z + vec4(0.0, i1.z, i2.z, 1.0 ))
+                       + i.y + vec4(0.0, i1.y, i2.y, 1.0 ))
+                       + i.x + vec4(0.0, i1.x, i2.x, 1.0 ));
+
+                // Gradients
+                // ( N*N points uniformly over a square, mapped onto an octahedron.)
+                float n_ = 1.0/7.0; // N=7
+                vec3  ns = n_ * D.wyz - D.xzx;
+
+                vec4 j = p - 49.0 * floor(p * ns.z *ns.z);  //  mod(p,N*N)
+
+                vec4 x_ = floor(j * ns.z);
+                vec4 y_ = floor(j - 7.0 * x_ );    // mod(j,N)
+
+                vec4 x = x_ *ns.x + ns.yyyy;
+                vec4 y = y_ *ns.x + ns.yyyy;
+                vec4 h = 1.0 - abs(x) - abs(y);
+
+                vec4 b0 = vec4( x.xy, y.xy );
+                vec4 b1 = vec4( x.zw, y.zw );
+
+                vec4 s0 = floor(b0)*2.0 + 1.0;
+                vec4 s1 = floor(b1)*2.0 + 1.0;
+                vec4 sh = -step(h, vec4(0.0));
+
+                vec4 a0 = b0.xzyw + s0.xzyw*sh.xxyy ;
+                vec4 a1 = b1.xzyw + s1.xzyw*sh.zzww ;
+
+                vec3 p0 = vec3(a0.xy,h.x);
+                vec3 p1 = vec3(a0.zw,h.y);
+                vec3 p2 = vec3(a1.xy,h.z);
+                vec3 p3 = vec3(a1.zw,h.w);
+
+                //Normalise gradients
+                vec4 norm = taylorInvSqrt(vec4(dot(p0,p0), dot(p1,p1), dot(p2, p2), dot(p3,p3)));
+                p0 *= norm.x;
+                p1 *= norm.y;
+                p2 *= norm.z;
+                p3 *= norm.w;
+
+                // Mix final noise value
+                vec4 m = max(0.6 - vec4(dot(x0,x0), dot(x1,x1), dot(x2,x2), dot(x3,x3)), 0.0);
+                m = m * m;
+                return 42.0 * dot( m*m, vec4( dot(p0,x0), dot(p1,x1),
+                                        dot(p2,x2), dot(p3,x3) ) );
+            }
+
+            vec3 permute2(vec3 x) { return mod(((x*34.0)+1.0)*x, 289.0); }
+
+            float snoise2(vec2 v){
+                const vec4 C = vec4(0.211324865405187, 0.366025403784439,
+                       -0.577350269189626, 0.024390243902439);
+                vec2 i  = floor(v + dot(v, C.yy) );
+                vec2 x0 = v -   i + dot(i, C.xx);
+                vec2 i1;
+                i1 = (x0.x > x0.y) ? vec2(1.0, 0.0) : vec2(0.0, 1.0);
+                vec4 x12 = x0.xyxy + C.xxzz;
+                x12.xy -= i1;
+                i = mod(i, 289.0);
+                vec3 p = permute2( permute2( i.y + vec3(0.0, i1.y, 1.0 ))
+                + i.x + vec3(0.0, i1.x, 1.0 ));
+                vec3 m = max(0.5 - vec3(dot(x0,x0), dot(x12.xy,x12.xy),
+                dot(x12.zw,x12.zw)), 0.0);
+                m = m*m ;
+                m = m*m ;
+                vec3 x = 2.0 * fract(p * C.www) - 1.0;
+                vec3 h = abs(x) - 0.5;
+                vec3 ox = floor(x + 0.5);
+                vec3 a0 = x - ox;
+                m *= 1.79284291400159 - 0.85373472095314 * ( a0*a0 + h*h );
+                vec3 g;
+                g.x  = a0.x  * x0.x  + h.x  * x0.y;
+                g.yz = a0.yz * x12.xz + h.yz * x12.yw;
+                return 130.0 * dot(m, g);
+            }
+
+            vec2 rotateAroundPoint(vec2 point, vec2 center, float angle) {
+                float x = center.x + (point.x-center.x)*cos(angle) - (point.y-center.y)*sin(angle);
+                float y = center.y + (point.x-center.x)*sin(angle) + (point.y-center.y)*cos(angle);
+                return vec2(x,y);
+            }
+
+            vec3 textureLookup(vec2 st, sampler2D tex) {
+                return texture2D(tex,st).xxx;
+            }
+
+            float max3 (vec3 v) {
+                return max(max(v.x, v.y), v.z);
+            }
+
+            vec3 getAvgRadial(vec2 st, sampler2D tex, vec2 offset) {
+                vec3 avg = vec3(0.);
+                float count = 0.;
+
+                float angStep = M_PI / (float(BL_SPREAD)/2.);
+                for (int i = 0; i < BL_SPREAD; i++) {
+                    float curAng  = angStep*float(i);
+                    vec2 newPoint = rotateAroundPoint(st+offset,st,curAng);
+                    if (newPoint.x > 0. && newPoint.x <= 1. && newPoint.y > 0. && newPoint.y <= 1.) {
+                        vec3 curTexColor = textureLookup(newPoint,tex);
+                        avg += curTexColor;
+                        count += 1.;
+                    }
+                }
+                if (count > 0.) return avg/count;
+                return avg;
+            }
+
+            const mat2 m2 = mat2(0.8,-0.6,0.6,0.8);
+            float fbm( in vec3 p ){
+                float f = 0.0;
+                f += 0.5000*snoise( p ); p.xy = m2*p.xy*2.02;
+                f += 0.2500*snoise( p ); p.xy = m2*p.xy*2.03;
+                f += 0.1250*snoise( p ); p.xy = m2*p.xy*2.01;
+                f += 0.0625*snoise( p );
+
+                return f/0.9375;
+            }
+
+            float fbm2( in vec2 p ){
+                float f = 0.0;
+                f += 0.5000*snoise2( p ); p = m2*p*2.02;
+                f += 0.2500*snoise2( p ); p = m2*p*2.03;
+                f += 0.1250*snoise2( p ); p = m2*p*2.01;
+                f += 0.0625*snoise2( p );
+
+                return f/0.9375;
+            }
+
+            vec2 getPerpendicular(vec2 v) {
+                return vec2(v.y,-v.x);
+            }
+
+            float rand(float n){return fract(sin(n) * 43758.5453123);}
+            float rand2(vec2 n) {
+                return fract(sin(dot(n, vec2(12.98234623798, 4.14234537543914))) * 47.34595456987);
+            }
+
+            vec3 isOnLine(vec2 p1, vec2 p2, vec2 testPoint, float lineWidth, vec3 lineColor, vec3 nonLineColor) {
+                vec2 slope = normalize(p2-p1);
+                vec2 pSlope = getPerpendicular(slope);
+
+                vec2 tPointA = testPoint - pSlope*lineWidth*0.001;
+                vec2 tPointB = testPoint + pSlope*lineWidth*0.001;
+
+                if (distance(tPointA,p1) > distance(testPoint,p1) &&
+                    distance(tPointB,p1) > distance(testPoint,p1) &&
+                    abs(distance(p1, testPoint) + distance(p2, testPoint) - distance(p1, p2)) < lineWidth*0.001) {
+                    return lineColor;
+                }
+                else {
+                    return nonLineColor;
+                }
+            }
+
+            float noise(float p){
+                float fl = floor(p);
+                float fc = fract(p);
+                return mix(rand(fl), rand(fl + 1.0), fc);
+            }
+
+            void main() {
+                vec2 st     = gl_FragCoord.xy/u_resolution.xy;
+                vec2 ms     = 2. * vec2(u_mouse.x,u_mouse.y)/u_resolution.xy;
+                ms.y        = (-ms.y) + 1.;
+                vec2 center = vec2(0.5,0.5);
+
+                // now we scale the x coordinate to make the x values to
+                // represent the same number of pixels as the y values.
+                // if the new x value is x1, and old x value is x0,
+                // the following is now true: 0. <= x1 <= x0 * (width/height).
+
+                st.x     *= u_resolution.x/u_resolution.y;
+                ms.x     *= u_resolution.x/u_resolution.y;
+                center.x *= u_resolution.x/u_resolution.y;
+
+                vec2 pixel = .5/u_resolution.xy;
+                vec3 color = vec3(0.);
+
+                float s_time = u_time/20.;
+
+                ////////////////////////////////////////////////////////////////
+
+                vec2 bgShift = (vec2(0.9,0.5)-vUv+vec2(0.005,0.005*u_channel_avg*snoise2(vec2(st.x,u_time/25.))))/50.;
+
+                // vec2 vPos = vUv-vec2(rightShift,0.);
+                vec2 vPos = vUv-bgShift;
+
+                float bassFuck = (rand2(vPos*1000. + u_time)-0.5)*vUv.x*u_bass_avg/100.;
+                float highFuck = (rand2(vPos*1000. + u_time)-0.5)*vUv.x*u_high_avg/100.;
+
+                vPos.y += bassFuck;
+                vec3 backColor = texture2D(backbuffer,vPos).xyz;
+                if (vPos.x > 0. && vPos.x < 1. && vPos.y > 0. && vPos.y < 1.) color += backColor;
+
+                ////////////////////////////////////////////////////////////////
+
+                vec2 leftCenter = vec2(center.x - 0.25*u_resolution.x/u_resolution.y,center.y);
+                center.x -= 0.25*u_resolution.x/u_resolution.y;
+
+                leftCenter.y -= 0.;
+                center.y -= 0.;
+
+                float angleMult = 0.1;
+                float colorSpread = 0.3;
+                float lineColorDiff = 50.;
+                int todoLast = 0;
+
+                vec2 wack = normalize(vec2(
+                    snoise2(vec2(u_time/30.))/10.,
+                    snoise2(vec2(u_time/30. + 100.))
+                ))*vec2(u_resolution.x/u_resolution.y,1.)*u_channel_avg/1000.;
+
+                vec2 last_wack = normalize(vec2(
+                    snoise2(vec2((u_time-0.05)/30.))/10.,
+                    snoise2(vec2((u_time-0.05)/30. + 100.))
+                ))*vec2(u_resolution.x/u_resolution.y,1.)*u_channel_avg/1000.;
+
+                vec2 last_leftCenter = leftCenter;
+                float curRotateAmt  = 0.;
+                float lastRotateAmt = 0.;
+                // leftCenter += wack;
+
+                bgShift.x *= u_resolution.x/u_resolution.y;
+
+                for (int i = 0; i < NUM_CHANNELS-1; i++) {
+
+                    vec2 curCenter  = rotateAroundPoint(leftCenter+wack + vec2(u_channels[i]/500.,0.),leftCenter,u_channels[i]*angleMult);
+                    vec2 last_curCenter  = rotateAroundPoint(leftCenter+last_wack + vec2(u_last_channels[i]/500.,0.),leftCenter,u_last_channels[i]*angleMult) + bgShift;
+
+                    vec3 lineColor = u_channel_colors[i]*(u_channel_avg/100.);
+                    vec3 barColor = lineColor;
+
+                    vec2 curST = st + vec2(highFuck*5.,bassFuck*10.)*wack;
+                    // color = isOnLine(curCenter,leftCenter,curST,200.*(0.05+u_channel_avg/2000.),barColor,color);
+                    // color = isOnLine(last_curCenter,leftCenter,st,1.,vec3(1.),color);
+                    color = isOnLine(curCenter, last_curCenter, curST,3.+(10. / (1.+abs(u_channels[i]-u_last_channels[i]))),lineColor,color);
+                    // leftCenter = curCenter;
+                    // last_leftCenter = last_curCenter;
+                }
+                ////////////////////////////////////////////////////////////////
+
+
+                gl_FragColor = vec4(color,1.);
+            }
+        </script>
+    </head>
+    <body>
+        <div id="container"></div>
+        <audio id="audioSource" src="../../library/audio/song.mp3" style="display:none" muted="true"></audio>
+    </body>
+</html>

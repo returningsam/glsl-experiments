@@ -267,25 +267,25 @@
                 vec2 pixel = 1./u_resolution.xy;
                 vec3 color = vec3(0.);
 
-                // vec3 bac_color = texture2D(backbuffer,vUv).xyz;
+                vec3 bac_color = texture2D(backbuffer,vUv).xyz;
                 // vec3 vid_color = texture2D(vid_texture,vPos).xyz;
                 float min_nbr_slope = getMinNbrSlope(vUv,backbuffer,pixel);
 
                 int count = countNonZero(vUv,backbuffer,pixel);
 
-                // if (length(bac_color) > 0.01) {
-                //     if (count < 2 || count > 3) {
-                //         color = vec3(0.);
-                //     }
-                //     else  {
-                //         color = bac_color;
-                //     }
-                // }
-                // else {
-                //     if (count == 3) {
-                //         color = max_nbr;
-                //     }
-                // }
+                if (length(bac_color) > 0.01) {
+                    if (count < 2 || count > 3) {
+                        color = vec3(0.);
+                    }
+                    else  {
+                        color = bac_color;
+                    }
+                }
+                else {
+                    if (count == 3) {
+                        color += min_nbr_slope;
+                    }
+                }
 
                 float vid_slope = length(getBleedSlope(vPos,vid_texture,pixel));
 

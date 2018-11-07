@@ -160,14 +160,14 @@
 
                 vec3 vid_color = texture2D(vid_texture,vPos).xyz;
                 vec2 pixel = 1./u_resolution.xy;
-                vec3 bac_color = texture2D(backbuffer,vUv).xyz*0.9;
+                vec3 bac_color = texture2D(backbuffer,vUv).xyz*0.98;
 
                 vec2 texCoord = vPos;
 
 
                 vec3 color = bac_color;
 
-                if (abs(max3(abs(vid_color)-abs(bac_color))) > .8) {
+                if (abs(max3(abs(vid_color)-abs(bac_color))) > .4) {
                     color += max3(vid_color-bac_color);
                 }
 
